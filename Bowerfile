@@ -1,0 +1,7 @@
+asset 'angular'
+asset 'angular-route'
+asset 'angular-resource'
+asset 'angular-cookie'
+asset 'angular-sanitize'
+asset 'angular-chosen-localytics'
+asset 'bootstrap-sass-official'

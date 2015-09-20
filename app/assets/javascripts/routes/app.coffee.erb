@@ -1,0 +1,7 @@
+angular.module 'Tienda' 
+.config ($routeProvider) ->
+	$routeProvider
+		.when '/',
+			redirectTo: '/ventas'
+		.otherwise
+			redirectTo: '/'

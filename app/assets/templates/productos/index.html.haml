@@ -1,0 +1,38 @@
+%div.container
+	%div.col-md-1
+		%a{class: 'btn btn-success', 'ng-href': '#/productos/new'} 	Nueva
+	%div.col-md-11
+		%input{'ng-model': 'search.$', class: 'form-control', placeholder: 'Buscar...'}
+%br
+
+%div.container
+	%div{'ng-repeat': 'producto in productos | orderBy: "nombre" | filter:search track by $index'}
+		%div.container.col-md-6
+			%div.panel.panel-info		
+				%div.panel-body
+					%div.row
+						%div.col-md-12
+							%a{'ng-href': '#/productos/{{producto.id}}'}
+								%h1.success.text-center {{producto.nombre}}
+					%div.row
+						%div.col-md-2
+							%ul.list-group
+								%li.list-group-item.list-group-item-success
+									%span.glyphicon.glyphicon-user
+						%div.col-md-10
+							%ul.list-group
+								%li.list-group-item.list-group-item-success {{producto.organizacion.nombre}}
+					%div.row
+						%div.col-md-6
+							%ul.list-group
+								%li{class: 'list-group-item list-group-item-info',  'ng-bind-html': 'producto.desc'}
+						%div.col-md-6
+							%li{class: 'list-group-item'}
+								%img{'ng-src': '{{producto.image}}', width: '100%'}
+				%div.panel-footer.text-right
+					%span{class: 'glyphicon glyphicon-remove text-danger', 'ng-click': 'pre_borrar(producto)', 'data-toggle': 'modal', 'data-target': '#myModal'}
+		%div{class: 'clearfix', 'ng-if': ' $index % 2 != 0'}
+
+%t-confirmation-dialog
+
+

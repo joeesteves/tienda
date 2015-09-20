@@ -1,0 +1,10 @@
+angular.module('Tienda')
+.directive 'tNav', ($location) ->
+	replace: true
+	restrict: 'E'
+	templateUrl: '	<%= asset_path("nav") %>'
+	link: (scope) ->
+		scope.op_activa = $location.path().split('/')[1]
+		scope.$on "$locationChangeSuccess", ->
+			scope.op_activa = $location.path().split('/')[1]
+		scope.opciones_de_menu = ['Ventas', 'Compras', 'Productos', 'Organizaciones']

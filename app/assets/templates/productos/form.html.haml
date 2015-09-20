@@ -1,0 +1,25 @@
+%div.container
+	%div.col-sm-8
+		%form{class: 'form-horizontal', 'ng-submit': 'guardar()'}
+			%div.form-group
+				%label{class: 'col-sm-2 control-label'} Nombre
+				%div.col-sm-10
+					%input{tabindex: 1, type: 'text', class: "form-control", placeholder: 'Producto', 'ng-model': 'producto.nombre'}
+			%div.form-group
+				%label{class: 'col-sm-2 control-label'} Proveedor
+				%div.col-sm-10
+					%select{'chosen': true, tabindex: 2, class: "form-control", placeholder: 'Proveedor', 'ng-model': 'producto.organizacion_id', 'ng-options': 'organizacion.id as organizacion.nombre for organizacion in organizaciones' }
+						%option
+			%div.form-group
+				%label{class: 'col-sm-2 control-label'} Url Imagen
+				%div.col-sm-10
+					%input{tabindex: 3, type: 'text', class: "form-control", placeholder: 'Razon social', 'ng-model': 'producto.image'}
+			%div.form-group
+				%label{class: 'col-sm-2 control-label'} Datos adicionales
+				%div.col-sm-10
+					%textarea{tabindex: 4, class: "form-control", placeholder: 'Para acordarse...', 'ng-model': 'producto.desc'}
+			%div.form-group
+				%div{class: 'col-sm-offset-2 col-sm-10'}
+					%input{tabindex: 5, type: 'submit', class: "btn btn-primary"}
+	%div.col-sm-3.col-sm-offset-1
+		%img{'ng-src': '{{producto.image}}' }

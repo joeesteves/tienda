@@ -1,0 +1,12 @@
+angular.module 'Tienda' 
+.config ($routeProvider) ->
+	$routeProvider
+	.when '/productos',
+		templateUrl: '<%= asset_path("productos") %>'
+		controller: 'ProductosIndexController'
+	.when '/productos/new',
+		templateUrl: '<%= asset_path("productos/form") %>'
+		controller: 'ProductosCreateController'
+	.when '/productos/:id',
+		templateUrl: '<%= asset_path("productos/form") %>'
+		controller: 'ProductosUpdateController'

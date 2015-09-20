@@ -1,0 +1,1 @@
+angular.module('Tienda', ['ngRoute','ngResource', 'ngSanitize', 'localytics.directives'])

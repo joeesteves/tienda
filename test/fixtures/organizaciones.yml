@@ -1,0 +1,29 @@
+# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+fratelli:
+  nombre: Fratelli
+  id_fiscal: 30-31654987-2
+  email: frat@frat.com
+  telefono: 465464
+  desc: dsadasdasdas
+
+dos:
+  nombre: Segundo
+  id_fiscal: 32132131
+  email: lll@sadacms.com
+  telefono: 12312312
+  desc: dadasdjasdbasd
+
+tres:
+  nombre: Tercero
+  id_fiscal: 32132131
+  email: lll@sadacms.com
+  telefono: 12312312
+  desc: dadasdjasdbasd
+
+cuatro: 
+  nombre: Cuarto
+  id_fiscal: 32132131
+  email: lll@sadacms.com
+  telefono: 12312312
+  desc: dadasdjasdbasd

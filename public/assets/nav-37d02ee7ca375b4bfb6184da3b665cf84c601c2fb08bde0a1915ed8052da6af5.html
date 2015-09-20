@@ -1,0 +1,15 @@
+<div class='navbar navbar-default navbar-static-top'>
+  <div class='container-fluid'>
+    <a class='navbar-brand' href='#/'>
+      <img height="100%" src="/assets/bower-logo-e944ef7d078264bb821cf097d599029a6e89ae97b390a8852e18567ccb3fdba8.png" alt="Bower logo e944ef7d078264bb821cf097d599029a6e89ae97b390a8852e18567ccb3fdba8" />
+    </a>
+    <a class='navbar-brand' href='#/'>
+      Fratelli Vallega
+    </a>
+    <ul class='nav navbar-nav navbar-right'>
+      <li ng-class="{'active': op_activa == '{{item.toLowerCase()}}' }" ng-repeat='item in opciones_de_menu'>
+        <a href='#/{{item.toLowerCase()}}' ng-click='alerta()'>{{item}}</a>
+      </li>
+    </ul>
+  </div>
+</div>

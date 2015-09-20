@@ -1,0 +1,6 @@
+angular.module 'Tienda' 
+.config ($routeProvider) ->
+	$routeProvider
+	.when '/ventas',
+			templateUrl: '<%= asset_path("ventas") %>'
+			# controller: 'VentasIndexController'

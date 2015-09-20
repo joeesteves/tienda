@@ -1,0 +1,25 @@
+%div.container
+	%form{class: 'form-horizontal', 'ng-submit': 'guardar()'}
+		%div.form-group
+			%label{class: 'col-sm-2 control-label'} Nombre
+			%div.col-sm-10
+				%input{tabindex: 1, type: 'text', class: "form-control", placeholder: 'Razon social', 'ng-model': 'organizacion.nombre'}
+		%div.form-group
+			%label{class: 'col-sm-2 control-label'} Id. fiscal
+			%div.col-sm-10
+				%input{tabindex: 2, type: 'text', class: "form-control", placeholder: '##-########-#', 'ng-model': 'organizacion.id_fiscal'}
+		%div.form-group
+			%label{class: 'col-sm-2 control-label'} Telefono
+			%div.col-sm-10
+				%input{tabindex: 3, type: 'text', class: "form-control", placeholder: '(###) ####-####', 'ng-model': 'organizacion.telefono'}
+		%div.form-group
+			%label{class: 'col-sm-2 control-label'} Email
+			%div.col-sm-10
+				%input{tabindex: 4, type: 'email', class: "form-control", placeholder: 'Email', 'ng-model': 'organizacion.email'}
+		%div.form-group
+			%label{class: 'col-sm-2 control-label'} Datos adicionales
+			%div.col-sm-10
+				%textarea{tabindex: 4, class: "form-control", placeholder: 'Para acordarse...', 'ng-model': 'organizacion.desc'}
+		%div.form-group
+			%div{class: 'col-sm-offset-2 col-sm-10'}
+				%input{tabindex: 5, type: 'submit', class: "btn btn-primary"}

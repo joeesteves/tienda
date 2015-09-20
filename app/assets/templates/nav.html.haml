@@ -1,0 +1,10 @@
+%div.navbar.navbar-default.navbar-static-top
+	%div.container-fluid
+		%a{:href => '#/', :class => 'navbar-brand'} 
+			=image_tag "bower-logo.png", height: '100%'
+		%a{:href => '#/', :class => 'navbar-brand'} 
+			Fratelli Vallega
+
+		%ul.nav.navbar-nav.navbar-right
+			%li{'ng-repeat' => 'item in opciones_de_menu', 'ng-class' => "{'active': op_activa == '{{item.toLowerCase()}}' }" } 
+				%a{:href => '#/{{item.toLowerCase()}}', 'ng-click' => 'alerta()'} {{item}}
