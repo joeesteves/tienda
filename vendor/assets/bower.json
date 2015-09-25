@@ -7,6 +7,8 @@
     "angular-cookie": "latest",
     "angular-sanitize": "latest",
     "angular-chosen-localytics": "latest",
+    "angular-ui-mask": "latest",
+    "angular-marked": "latest",
     "bootstrap-sass-official": "latest"
   }
 }

@@ -11,7 +11,34 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20150919205016) do
+ActiveRecord::Schema.define(version: 20150920184318) do
+
+  create_table "operaciones", force: :cascade do |t|
+    t.date     "fecha"
+    t.integer  "operaciontipo_id"
+    t.text     "desc"
+    t.datetime "created_at",       null: false
+    t.datetime "updated_at",       null: false
+  end
+
+  add_index "operaciones", ["operaciontipo_id"], name: "index_operaciones_on_operaciontipo_id"
+
+  create_table "operacionitems", force: :cascade do |t|
+    t.integer  "producto_id"
+    t.decimal  "cantidad",     precision: 10, scale: 2
+    t.decimal  "precio",       precision: 10, scale: 2
+    t.datetime "created_at",                            null: false
+    t.datetime "updated_at",                            null: false
+    t.integer  "operacion_id"
+  end
+
+  add_index "operacionitems", ["producto_id"], name: "index_operacionitems_on_producto_id"
+
+  create_table "operaciontipos", force: :cascade do |t|
+    t.string   "nombre"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
 
   create_table "organizaciones", force: :cascade do |t|
     t.string   "nombre"

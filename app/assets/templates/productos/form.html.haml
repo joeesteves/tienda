@@ -4,16 +4,16 @@
 			%div.form-group
 				%label{class: 'col-sm-2 control-label'} Nombre
 				%div.col-sm-10
-					%input{tabindex: 1, type: 'text', class: "form-control", placeholder: 'Producto', 'ng-model': 'producto.nombre'}
+					%input{tabindex: 1, type: 'text', class: "form-control", placeholder: 'Nombre especifico del producto', 'ng-model': 'producto.nombre', required: true}
 			%div.form-group
 				%label{class: 'col-sm-2 control-label'} Proveedor
 				%div.col-sm-10
-					%select{'chosen': true, tabindex: 2, class: "form-control", placeholder: 'Proveedor', 'ng-model': 'producto.organizacion_id', 'ng-options': 'organizacion.id as organizacion.nombre for organizacion in organizaciones' }
+					%select{'chosen': true, tabindex: 2, class: "form-control",  'data-placeholder': 'Seleccionar un proveedor...', 'ng-model': 'producto.organizacion_id', 'ng-options': 'organizacion.id as organizacion.nombre for organizacion in organizaciones' }
 						%option
 			%div.form-group
-				%label{class: 'col-sm-2 control-label'} Url Imagen
+				%label{class: 'col-sm-2 control-label'} Url imagen
 				%div.col-sm-10
-					%input{tabindex: 3, type: 'text', class: "form-control", placeholder: 'Razon social', 'ng-model': 'producto.image'}
+					%input{tabindex: 3, type: 'text', class: "form-control", placeholder: 'Pegar url de la imagen... (http://..../imagen.jpg)', 'ng-model': 'producto.image'}
 			%div.form-group
 				%label{class: 'col-sm-2 control-label'} Datos adicionales
 				%div.col-sm-10

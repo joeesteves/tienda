@@ -1,0 +1,11 @@
+# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  fecha: 2015-09-20
+  operaciontipo_id: 
+  desc: MyText
+
+two:
+  fecha: 2015-09-20
+  operaciontipo_id: 
+  desc: MyText

@@ -25,7 +25,8 @@
 					%div.row
 						%div.col-md-6
 							%ul.list-group
-								%li{class: 'list-group-item list-group-item-info',  'ng-bind-html': 'producto.desc'}
+								%li{class: 'list-group-item list-group-item-info'}
+									%div{'marked': 'producto.desc'}
 						%div.col-md-6
 							%li{class: 'list-group-item'}
 								%img{'ng-src': '{{producto.image}}', width: '100%'}

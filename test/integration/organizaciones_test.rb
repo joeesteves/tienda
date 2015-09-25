@@ -11,15 +11,15 @@ class OrganizacionesTest < ActionDispatch::IntegrationTest
   	resp = parse_json(response)
   	assert_equal organizacion.nombre, resp[:nombre] 
   end
-  test "no crear organzaciones con info invalida" do
-  	organizacion = Organizacion.new(
-  		nombre: 'la pochola', id_fiscal: '20-16123456-0', email: 'la_pocha@gmai_com', telefono: '555-456', desc: 'buenas macetas'
-  	)
-  	post '/organizaciones', {organizacion: organizacion}.to_json, encabezado_con_contenido
+  # test "no crear organzaciones con info invalida" do
+  # 	organizacion = Organizacion.new(
+  # 		nombre: 'la pochola', id_fiscal: '20-16123456-0', email: 'la_pocha@gmai_com', telefono: '555-456', desc: 'buenas macetas'
+  # 	)
+  # 	post '/organizaciones', {organizacion: organizacion}.to_json, encabezado_con_contenido
 
-  	assert_response(422)
+  # 	assert_response(422)
   
-  end
+  # end
 
 
   test "listar organizaciones" do
