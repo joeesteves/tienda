@@ -2,7 +2,7 @@ class ProductosController < ApplicationController
 	before_action :set_producto, only: [:show, :update, :destroy]
 
 	def index
-		render json: Producto.order(:nombre)
+		render json: Producto.order(:nombre).as_json(include: {organizacion: {only: :nombre}})
 	end
 
 	def show

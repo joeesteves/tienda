@@ -1,0 +1,79 @@
+%div.container
+	%div.col-md-1
+		%a{class: 'btn btn-warning', 'ng-href': '#/ventas'}Cancelar
+	%div.col-md-3
+		%a{class: 'btn btn-success', style: 'width:100%', 'ng-href': '#/productos/new'}Confirmar
+	%div.col-md-8
+		%input{'ng-model': 'search.$', class: 'form-control', placeholder: 'Buscar...'}
+	%br
+
+	%div.col-md-4
+		%br
+		%textarea{placeholder: 'Notas...', style: 'width:100%'}
+		%table.table.table-striped
+			%thead
+				%tr
+					%th #
+					%th Producto
+					%th Precio
+					%th Importe
+			%tbody
+				%tr{'ng-repeat': 'item in ventas'}
+					%td {{item.cantidad}}
+					%td {{item.producto_nombre}}
+					%td {{item.precio}}
+					%td {{item.cantidad * item.precio}}
+				%tr{'ng-hide': 'no_hay_items'}
+					%td{class: 'warning', colspan:3} Total
+					%td{class: 'warning'} {{total}}
+				%tr{'ng-show': 'no_hay_items'}
+					%td{class: 'info text-right', colspan:4}
+						Arme su orden de venta ... 
+						%span{class: 'glyphicon glyphicon-share-alt'} 
+
+	%div.col-md-8
+		%br
+		%div{'ng-repeat': 'producto in productos | orderBy: "nombre" | filter:search track by $index'}
+			%div.panel.panel-info
+				%div.panel-body.container-fluid
+					%div.col-md-2
+						%div.row
+							%div.col-md-6
+								%div.row
+									%span{class: 'label label-warning', style: 'display:block'}
+										Venta
+								%div.row
+									%p.text-warning.text-center
+										30
+							%div.col-md-6
+								%div.row
+									%span{class: 'label label-success', style: 'display:block'}
+										Stock
+								%div.row
+									%p.text-success.text-center
+										50
+						%div.row
+							%div.col-md-4
+								%div.row
+									%button{class: 'btn btn-success', 'ng-click': 'agregar_item(producto)'}
+										%span{class: 'glyphicon glyphicon-plus'}
+							%div.col-md-4
+								%div.row
+									%button.btn
+										%span{class: 'glyphicon glyphicon-shopping-cart'}
+							%div.col-md-4
+								%div.row	
+									%button{class: 'btn btn-danger', 'ng-click': 'restar_item(producto)'}
+										%span{class: 'glyphicon glyphicon-minus'}						
+					%div.col-md-8
+						%a{'ng-href': '#/productos/{{producto.id}}'}
+							%h3{class: 'text-uppercase text-primary', style: 'margin-top:0px'} {{producto.nombre}}
+						%div{'marked': 'producto.desc'}
+						%p de {{producto.organizacion.nombre}}
+					%div.col-md-2
+						%img{'ng-src': '{{producto.image}}', height: '70px'}
+			%div.clearfix
+
+
+
+

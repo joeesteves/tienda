@@ -1,6 +1,34 @@
 %div.container
-	%div.jumbotron
-		%h1 Ventas
-		%p ...
-		%p 
-			%a.btn.btn-primary.btn-lg Aprenda mas
+	%div.col-md-1
+		%a{class: 'btn btn-success', 'ng-href': '#/ventas/new'} Nueva
+	%div.col-md-11
+		%input{'ng-model': 'search.$', class: 'form-control', placeholder: 'Buscar...'}
+%br
+
+%div.container
+	%div{'ng-repeat': 'venta in ventas | orderBy: "created_at" | filter:search', class: 'container col-md-3'}
+		%div.panel.panel-info		
+			%div.panel-body
+				%div.row
+					%div.col-md-12
+						%a{'ng-href': '#/ventas/{{venta.id}}'}
+							%h1.success.text-center 
+				%div.row
+					%div.col-md-2
+						%ul.list-group
+							%li.list-group-item.list-group-item-success
+								%span.glyphicon.glyphicon-envelope
+							%li.list-group-item.list-group-item-info
+								%span.glyphicon.glyphicon-phone-alt
+							%li.list-group-item.list-group-item-success
+								%span.glyphicon.glyphicon-list-alt
+					%div.col-md-10
+						%li.list-group-item.list-group-item-success 
+						%li.list-group-item.list-group-item-info 
+						%li.list-group-item.list-group-item-success 
+				%div.row
+					%div.col-md-12 
+						%li.list-group-item.list-group-item-info
+			%div.panel-footer.text-right
+				%span{class: 'glyphicon glyphicon-remove text-danger', 'ng-click': 'pre_borrar(venta)', 'data-toggle': 'modal', 'data-target': '#myModal'}
+%t-confirmation-dialogrou

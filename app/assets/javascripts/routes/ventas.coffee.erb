@@ -4,3 +4,6 @@ angular.module 'Tienda'
 	.when '/ventas',
 			templateUrl: '<%= asset_path("ventas") %>'
 			# controller: 'VentasIndexController'
+	.when '/ventas/new',
+			templateUrl: '<%= asset_path("ventas/form") %>'
+			controller: 'VentasCreateController'
