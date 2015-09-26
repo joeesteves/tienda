@@ -19,7 +19,7 @@
 					%th Precio
 					%th Importe
 			%tbody
-				%tr{'ng-repeat': 'item in venta.operacionitems_attributes'}
+				%tr{'ng-repeat': 'item in venta.operacionitems_attributes', 'ng-hide': 'item._destroy'}
 					%td {{item.cantidad}}
 					%td {{item.producto.nombre}}
 					%td {{item.precio}}

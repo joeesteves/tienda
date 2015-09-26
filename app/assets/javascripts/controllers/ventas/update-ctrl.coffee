@@ -18,21 +18,26 @@ angular.module 'Tienda'
 				v["cantidad"] += 1
 				producto_en_lista = true
 				$scope.total += v["precio"]
+				v["_destroy"] = false
 		if producto_en_lista == false
 			$scope.venta.operacionitems_attributes.push({"producto_id": producto.id, "producto": {"nombre": producto.nombre}, "cantidad": 1, "precio": 10})
 			$scope.total += 10
 		$scope.no_hay_items = false
 
 	$scope.restar_item = (producto) ->
+		cantidad_items = 0
 		angular.forEach $scope.venta.operacionitems_attributes, (v,i) ->
-			if v["producto_id"] == producto.id
-				if v["cantidad"] != 1
+			if v["_destroy"] != true
+				cantidad_items += 1	
+				if v["producto_id"] == producto.id
+					if v["cantidad"] != 1
+						$scope.total -= v["precio"]
+					else
+						cantidad_items -= 1
+						$scope.total -= v["precio"]
+						v["_destroy"] = true
 					v["cantidad"] -= 1
-					$scope.total -= v["precio"]
-				else
-					$scope.total -= v["precio"]
-					$scope.venta.operacionitems_attributes.splice(i,1)
-		$scope.no_hay_items = true if $scope.venta.operacionitems_attributes.length == 0
+		$scope.no_hay_items = true if cantidad_items == 0
 
 	$scope.$on '$locationChangeStart', (event) ->
 		if !$scope.no_hay_items
