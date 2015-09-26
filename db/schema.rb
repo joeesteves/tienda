@@ -11,14 +11,15 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20150926172130) do
+ActiveRecord::Schema.define(version: 20150926202813) do
 
   create_table "operaciones", force: :cascade do |t|
     t.date     "fecha"
     t.integer  "operaciontipo_id"
     t.text     "desc"
-    t.datetime "created_at",       null: false
-    t.datetime "updated_at",       null: false
+    t.datetime "created_at",                               null: false
+    t.datetime "updated_at",                               null: false
+    t.decimal  "total",            precision: 8, scale: 2
   end
 
   add_index "operaciones", ["operaciontipo_id"], name: "index_operaciones_on_operaciontipo_id"

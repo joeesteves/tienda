@@ -19,14 +19,14 @@
 					%th Precio
 					%th Importe
 			%tbody
-				%tr{'ng-repeat': 'item in venta.operacionitems_attributes', 'ng-hide': 'item._destroy'}
+				%tr{'ng-repeat': 'item in venta.operacionitems', 'ng-hide': 'item._destroy'}
 					%td {{item.cantidad}}
 					%td {{item.producto.nombre}}
 					%td {{item.precio}}
-					%td {{item.cantidad * item.precio}}
+					%td {{item.cantidad * item.precio | number : fractionSize}}
 				%tr{'ng-hide': 'no_hay_items'}
 					%td{class: 'warning', colspan:3} Total
-					%td{class: 'warning'} {{total}}
+					%td{class: 'warning'} {{venta.total | number : fractionSize}}
 				%tr{'ng-show': 'no_hay_items'}
 					%td{class: 'info text-right', colspan:4}
 						Arme su orden de venta ... 

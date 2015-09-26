@@ -3,12 +3,12 @@ require 'test_helper'
 class ComprasTest < ActionDispatch::IntegrationTest
 	test "crear una operacion de tipo compra" do
 		compra = Operaciontipo.create(nombre: "compra")
-		operacion = {operacion: {fecha: Date.today,  desc: "primera compra", operacionitems_attributes: [
-				{ producto_attributes: productos(:alalala).as_json, cantidad: 1.2, precio: 1.9},
-				{ producto_attributes: productos(:alalala).as_json, cantidad: 1.2, precio: 1.9}
+		operacion = {operacion: {fecha: Date.today,  desc: "primera compra", operacionitems: [
+				{ producto: {id: productos(:alalala).id}, cantidad: 1.2, precio: 1.9},
+				{ producto: {id: productos(:alalala).id}, cantidad: 1.2, precio: 1.9}
 				]}}
 
-		puts productos(:alalala).as_json
+		
 		post '/operaciones', operacion.to_json, encabezado_con_contenido
 		
 		puts parse_json(response)[:operacionitems]

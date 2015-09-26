@@ -4,37 +4,36 @@ angular.module 'Tienda'
 	.then (data) ->
 		$scope.venta = data
 		$scope.venta.fecha = new Date()	
-		$scope.venta.operacionitems_attributes = $scope.venta.operacionitems
 		$scope.productos = Producto.query()
 		$scope.no_hay_items = false
-		$scope.total = 100
+		$scope.venta.total = parseFloat($scope.venta.total)
 	.catch (err) ->
 		alert(err)
 	
 	$scope.agregar_item = (producto) ->
 		producto_en_lista = false
-		angular.forEach $scope.venta.operacionitems_attributes, (v,i) ->
-			if v["producto_id"] == producto.id
+		angular.forEach $scope.venta.operacionitems, (v,i) ->
+			if v["producto"]["id"] == producto.id
 				v["cantidad"] += 1
 				producto_en_lista = true
-				$scope.total += v["precio"]
+				$scope.venta.total += parseFloat(v["precio"])
 				v["_destroy"] = false
 		if producto_en_lista == false
-			$scope.venta.operacionitems_attributes.push({"producto_id": producto.id, "producto": {"nombre": producto.nombre}, "cantidad": 1, "precio": 10})
-			$scope.total += 10
+			$scope.venta.operacionitems.push({"producto": {"id": producto.id, "nombre": producto.nombre}, "cantidad": 1, "precio": 10})
+			$scope.venta.total += 10
 		$scope.no_hay_items = false
 
 	$scope.restar_item = (producto) ->
 		cantidad_items = 0
-		angular.forEach $scope.venta.operacionitems_attributes, (v,i) ->
+		angular.forEach $scope.venta.operacionitems, (v,i) ->
 			if v["_destroy"] != true
 				cantidad_items += 1	
-				if v["producto_id"] == producto.id
+				if v["producto"]["id"] == producto.id
 					if v["cantidad"] != 1
-						$scope.total -= v["precio"]
+						$scope.venta.total -= parseFloat(v["precio"])
 					else
 						cantidad_items -= 1
-						$scope.total -= v["precio"]
+						$scope.venta.total -= parseFloat(v["precio"])
 						v["_destroy"] = true
 					v["cantidad"] -= 1
 		$scope.no_hay_items = true if cantidad_items == 0

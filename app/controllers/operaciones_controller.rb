@@ -37,7 +37,15 @@ private
 	end
 
 	def operacion_params
-		params.require(:operacion).permit(:fecha, :desc, :operaciontipo_id, operacionitems_attributes: [:id, :producto_id, :cantidad, :precio, :_destroy])
+		unless params[:operacion][:operacionitems].blank?
+			params[:operacion][:operacionitems_attributes] = params[:operacion][:operacionitems]
+			params[:operacion].delete("operacionitems")
+			params[:operacion][:operacionitems_attributes].each do |item|
+				item[:producto_id] = item[:producto][:id]
+				item.delete("producto")
+			end
+			params.require(:operacion).permit(:fecha, :desc, :operaciontipo_id, operacionitems_attributes: [:id, :producto_id, :cantidad, :precio, :_destroy])
+		end
 	end
 
 end
