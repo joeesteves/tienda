@@ -2,14 +2,16 @@ class VentasController < ApplicationController
 	before_action :set_venta, only: [:show, :update, :destroy]
 
 	def index
-		render json: Operacion.ventas.order(:nombre)
+		render json: Operacion.ventas.order(:created_at).as_json
 	end
 
 	def show
-		render json: @venta
+		render json: @venta.as_json
 	end
+	
 	def create
-		venta = Operacion.new(ventas_params)
+		op_venta = Operaciontipo.find_by_nombre('venta')
+		venta = op_venta.operaciones.new(venta_params)
 		if venta.save
 			render json: venta
 		else
@@ -35,7 +37,7 @@ private
 		@venta = Operacion.find(params[:id])
 	end
 
-	def ventas_params
+	def venta_params
 		params.require(:venta).permit(:fecha, :desc, :operaciontipo_id, operacionitems_attributes: [:id, :producto_id, :cantidad, :precio, :_destroy])
 	end
 

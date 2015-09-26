@@ -2,12 +2,12 @@ class OperacionesController < ApplicationController
 	before_action :set_operacion, only: [:show, :update, :destroy]
 
 	def index
-		render json: Operacion.order(:nombre)
+		render json: Operacion.order(:nombre).as_json
 	end
 
 	def show
 		render json: @operacion
-	end
+		end
 
 	def create
 		operacion = Operacion.new(operacion_params)

@@ -1,13 +1,16 @@
 angular.module 'Tienda'
-.controller 'VentasCreateController', (Venta, Producto, $scope, $location) ->
-	$scope.venta = new Venta()
-	$scope.venta.fecha = new Date()	
-	$scope.productos = Producto.query()
-	$scope.no_hay_items = true
-	$scope.venta.operacionitems_attributes = []
-	$scope.total = 0
-	$scope.focus_en_buscador = false
-
+.controller 'VentasUpdateController', (Venta, Producto, $scope, $location, $routeParams) ->
+	Venta.get({id: $routeParams.id}).$promise
+	.then (data) ->
+		$scope.venta = data
+		$scope.venta.fecha = new Date()	
+		$scope.venta.operacionitems_attributes = $scope.venta.operacionitems
+		$scope.productos = Producto.query()
+		$scope.no_hay_items = false
+		$scope.total = 100
+	.catch (err) ->
+		alert(err)
+	
 	$scope.agregar_item = (producto) ->
 		producto_en_lista = false
 		angular.forEach $scope.venta.operacionitems_attributes, (v,i) ->
@@ -35,17 +38,12 @@ angular.module 'Tienda'
 		if !$scope.no_hay_items
 			respuesta = confirm("Desea descartar la orden de venta?")
 			event.preventDefault() if !respuesta
+
 	$scope.confirmar_venta = () ->
-		$scope.venta.$save()
+		$scope.venta.$update()
 		.then ->
 			$scope.no_hay_items = true
 			$location.path('/ventas')
 		.catch (err) ->
 			alert(err)
 		console.log($scope.venta)
-	$scope.elegir_otro = () ->
-		$scope.search = ''
-		$('#buscador').focus()
-
-
-			

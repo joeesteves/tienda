@@ -2,14 +2,15 @@
 	%div.col-md-1
 		%a{class: 'btn btn-warning', 'ng-href': '#/ventas'}Cancelar
 	%div.col-md-3
-		%a{class: 'btn btn-success', style: 'width:100%', 'ng-href': '#/productos/new'}Confirmar
+		%button{class: 'btn btn-success', style: 'width:100%', 'ng-disabled': 'no_hay_items', 'ng-click': 'confirmar_venta()'}Confirmar
 	%div.col-md-8
-		%input{'ng-model': 'search.$', class: 'form-control', placeholder: 'Buscar...'}
+		%input{'id': 'buscador', 'ng-model': 'search.$', class: 'form-control', placeholder: 'Buscar...'}
 	%br
 
 	%div.col-md-4
 		%br
-		%textarea{placeholder: 'Notas...', style: 'width:100%'}
+		%input{type: 'date', 'ng-model': 'venta.fecha'}
+		%textarea{placeholder: 'Notas...', style: 'width:100%', 'ng-model': 'venta.desc'}
 		%table.table.table-striped
 			%thead
 				%tr
@@ -18,9 +19,9 @@
 					%th Precio
 					%th Importe
 			%tbody
-				%tr{'ng-repeat': 'item in ventas'}
+				%tr{'ng-repeat': 'item in venta.operacionitems_attributes'}
 					%td {{item.cantidad}}
-					%td {{item.producto_nombre}}
+					%td {{item.producto.nombre}}
 					%td {{item.precio}}
 					%td {{item.cantidad * item.precio}}
 				%tr{'ng-hide': 'no_hay_items'}
@@ -59,7 +60,7 @@
 										%span{class: 'glyphicon glyphicon-plus'}
 							%div.col-md-4
 								%div.row
-									%button.btn
+									%button{class: 'btn', 'ng-click': 'elegir_otro()'}
 										%span{class: 'glyphicon glyphicon-shopping-cart'}
 							%div.col-md-4
 								%div.row	

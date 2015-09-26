@@ -12,23 +12,24 @@
 				%div.row
 					%div.col-md-12
 						%a{'ng-href': '#/ventas/{{venta.id}}'}
-							%h1.success.text-center 
+							%h1.success.text-center {{venta.fecha | date: 'mediumDate'}}
 				%div.row
-					%div.col-md-2
-						%ul.list-group
-							%li.list-group-item.list-group-item-success
-								%span.glyphicon.glyphicon-envelope
-							%li.list-group-item.list-group-item-info
-								%span.glyphicon.glyphicon-phone-alt
-							%li.list-group-item.list-group-item-success
-								%span.glyphicon.glyphicon-list-alt
-					%div.col-md-10
-						%li.list-group-item.list-group-item-success 
-						%li.list-group-item.list-group-item-info 
-						%li.list-group-item.list-group-item-success 
-				%div.row
-					%div.col-md-12 
-						%li.list-group-item.list-group-item-info
+					%table.table.table-striped
+						%thead
+							%tr
+								%th #
+								%th Producto
+								%th Precio
+								%th Importe
+						%tbody
+							%tr{'ng-repeat': 'item in venta.operacionitems'}
+								%td {{item.cantidad}}
+								%td {{item.producto.nombre}}
+								%td {{item.precio}}
+								%td {{item.cantidad * item.precio}}
+							%tr
+								%td{class: 'warning', colspan:3} Total
+								%td{class: 'warning'} Total
 			%div.panel-footer.text-right
 				%span{class: 'glyphicon glyphicon-remove text-danger', 'ng-click': 'pre_borrar(venta)', 'data-toggle': 'modal', 'data-target': '#myModal'}
-%t-confirmation-dialogrou
+%t-confirmation-dialog
