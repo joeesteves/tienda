@@ -1,5 +1,6 @@
 class Operacion < ActiveRecord::Base
 	belongs_to :operaciontipo
+	has_one :organizacion
 	has_many :operacionitems, dependent: :destroy 
 	accepts_nested_attributes_for :operacionitems, allow_destroy: true
 	validates :operacionitems, presence: {message: '- Debe habar al menos un item para la operación'}

@@ -41,18 +41,18 @@
 						%div.row
 							%div.col-md-6
 								%div.row
-									%span{class: 'label label-warning', style: 'display:block'}
+									%button{class: 'btn btn-warning btn-sm'}
 										Venta
-								%div.row
-									%p.text-warning.text-center
-										30
+										%br
+										%span{class: 'badge',  'ng-hide': 'cant_prod_en_venta[producto.id] <= 0'} {{ cant_prod_en_venta[producto.id] }}
 							%div.col-md-6
 								%div.row
-									%span{class: 'label label-success', style: 'display:block'}
-										Stock
-								%div.row
-									%p.text-success.text-center
-										50
+									%button{class: 'btn btn-success btn-sm'}
+										Stock 
+										%br
+										%span{class: 'badge', 'ng-hide': 'cant_prod_en_venta[producto.id] + 50 <= 0'} {{50 -  cant_prod_en_venta[producto.id]}}
+						%br
+						
 						%div.row
 							%div.col-md-4
 								%div.row

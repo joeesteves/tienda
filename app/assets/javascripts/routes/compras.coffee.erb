@@ -3,4 +3,10 @@ angular.module 'Tienda'
 	$routeProvider
 	.when '/compras',
 		templateUrl: '<%= asset_path("compras") %>'
-		# controller: 'VentasIndexController'
+		controller: 'ComprasIndexController'
+	.when '/compras/new',
+			templateUrl: '<%= asset_path("compras/form") %>'
+			controller: 'ComprasCreateController'
+	.when '/compras/:id',
+		templateUrl: '<%= asset_path("compras/form") %>'
+		controller: 'ComprasUpdateController'

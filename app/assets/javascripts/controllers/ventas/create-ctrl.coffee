@@ -7,28 +7,33 @@ angular.module 'Tienda'
 	$scope.venta.operacionitems = []
 	$scope.focus_en_buscador = false
 	$scope.venta.total = 0.00
+	$scope.cant_prod_en_venta = {} # {id_delproducto: cantidad}
 
 	$scope.agregar_item = (producto) ->
 		producto_en_lista = false
 		angular.forEach $scope.venta.operacionitems, (v,i) ->
-			if v["producto"]["id"] == producto.id
-				v["cantidad"] += 1
+			if v.producto.id == producto.id
+				v.cantidad += 1
+				$scope.cant_prod_en_venta[producto.id] = v.cantidad
 				producto_en_lista = true
-				$scope.venta.total += parseFloat(v["precio"])
+				$scope.venta.total += parseFloat(v.precio)
 		if producto_en_lista == false
 			$scope.venta.operacionitems.push({"producto": {"id": producto.id, "nombre": producto.nombre}, "cantidad": 1, "precio": 10})
+			$scope.cant_prod_en_venta[producto.id] = 1
 			$scope.venta.total += 10
 		$scope.no_hay_items = false
 
 	$scope.restar_item = (producto) ->
 		angular.forEach $scope.venta.operacionitems, (v,i) ->
-			if v["producto"]["id"] == producto.id
-				if v["cantidad"] != 1
-					v["cantidad"] -= 1
+			if v.producto.id == producto.id
+				if v.cantidad != 1
+					v.cantidad -= 1
+					$scope.cant_prod_en_venta[producto.id] = v.cantidad
 					$scope.venta.total -= parseFloat(v["precio"])
 				else
 					$scope.venta.total -= parseFloat(v["precio"])
 					$scope.venta.operacionitems.splice(i,1)
+					$scope.cant_prod_en_venta[producto.id] = 0
 		$scope.no_hay_items = true if $scope.venta.operacionitems.length == 0
 
 	$scope.$on '$locationChangeStart', (event) ->

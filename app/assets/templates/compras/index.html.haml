@@ -1,6 +1,40 @@
 %div.container
-	%div.jumbotron
-		%h1 Compras
-		%p ...
-		%p 
-			%a.btn.btn-primary.btn-lg Aprenda mas
+	%div.col-md-1
+		%a{class: 'btn btn-success', 'ng-href': '#/compras/new'} Nueva
+	%div.col-md-11
+		%input{'ng-model': 'search.$', class: 'form-control', placeholder: 'Buscar...'}
+%br
+
+%div.container
+	%div{'ng-repeat': 'compra in compras | orderBy: "created_at" | filter:search', class: 'container col-md-3'}
+		%div.panel.panel-info		
+			%div.panel-body
+				%div.row
+					%div.col-md-12
+						%a{'ng-href': '#/compras/{{compra.id}}'}
+							%h4.text-left {{compra.fecha | date: 'mediumDate'}}
+							%h1.success.text-center C# {{compra.id}}
+				%div.row
+					%table.table.table-striped
+						%thead
+							%tr
+								%th #
+								%th Producto
+								%th Precio
+								%th Importe
+						%tbody
+							%tr 
+								%td{class: 'info', colspan: 4} {{compra.organizacion}}
+							%tr{'ng-repeat': 'item in compra.operacionitems'}
+								%td {{item.cantidad}}
+								%td {{item.producto.nombre}}
+								%td {{item.precio}}
+								%td {{item.cantidad * item.precio}}
+							%tr
+								%td{class: 'warning', colspan:3} Total
+								%td{class: 'warning'} {{compra.total | number : fractionSize}}
+							%tr 
+								%td{class: 'info', colspan: 4, 'marked': 'compra.desc'}
+			%div.panel-footer.text-right
+				%span{class: 'glyphicon glyphicon-remove text-danger', 'ng-click': 'pre_borrar(compra)', 'data-toggle': 'modal', 'data-target': '#myModal'}
+%t-confirmation-dialog

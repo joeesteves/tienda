@@ -44,7 +44,8 @@ private
 				item[:producto_id] = item[:producto][:id]
 				item.delete("producto")
 			end
-			params.require(:operacion).permit(:fecha, :desc, :operaciontipo_id, operacionitems_attributes: [:id, :producto_id, :cantidad, :precio, :_destroy])
+			params.require(:operacion).permit(:fecha, :desc, :operaciontipo_id, :organizacion_id, 
+				operacionitems_attributes: [:id, :producto_id, :cantidad, :precio, :_destroy])
 		end
 	end
 
