@@ -24,7 +24,7 @@
 								%th Importe
 						%tbody
 							%tr 
-								%td{class: 'info', colspan: 4} {{compra.organizacion}}
+								%td{class: 'info', colspan: 4} {{compra.organizacion.nombre}}
 							%tr{'ng-repeat': 'item in compra.operacionitems'}
 								%td {{item.cantidad}}
 								%td {{item.producto.nombre}}

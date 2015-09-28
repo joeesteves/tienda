@@ -1,5 +1,6 @@
 angular.module 'Tienda'
 .controller 'ComprasCreateController', (Compra, Producto, Organizacion, $scope, $location) ->
+	$scope.es_nuevo = true
 	$scope.compra = new Compra()
 	$scope.compra.fecha = new Date()
 	$scope.organizaciones = Organizacion.query()
@@ -8,34 +9,35 @@ angular.module 'Tienda'
 	$scope.compra.operacionitems = []
 	$scope.focus_en_buscador = false
 	$scope.compra.total = 0.00
+	$scope.cant_prod_en_compra = {}
 
 	$scope.agregar_item = (producto) ->
 		producto_en_lista = false
 		angular.forEach $scope.compra.operacionitems, (v,i) ->
-			importe = v["cantidad"] * v["precio"]
+			importe = v.cantidad * v.precio
 			$scope.compra.total += importe
-			if v["producto"]["id"] == producto.id
-				v["cantidad"] += 1
-				producto.en_venta = v["cantidad"]
+			if v.producto.id == producto.id
+				v.cantidad += 1
+				$scope.cant_prod_en_compra[producto.id] = v.cantidad
 				producto_en_lista = true
 		if producto_en_lista == false
 			$scope.compra.operacionitems.push({"producto": {"id": producto.id, "nombre": producto.nombre}, "cantidad": 1, "precio": 10})
-			producto.en_venta = 1
+			$scope.cant_prod_en_compra[producto.id] = 1
 			$scope.compra.total += 10
 		$scope.no_hay_items = false
 		$scope.compra.organizacion_id = producto.organizacion_id if $scope.compra.operacionitems.length == 1
 
 	$scope.restar_item = (producto) ->
 		angular.forEach $scope.compra.operacionitems, (v,i) ->
-			if v["producto"]["id"] == producto.id
-				if v["cantidad"] != 1
-					v["cantidad"] -= 1
-					producto.en_venta = v["cantidad"]
-					$scope.compra.total -= parseFloat(v["precio"])
+			if v.producto.id == producto.id
+				if v.cantidad != 1
+					v.cantidad -= 1
+					$scope.cant_prod_en_compra[producto.id] = v.cantidad
+					$scope.compra.total -= parseFloat(v.precio)
 				else
-					$scope.compra.total -= parseFloat(v["precio"])
+					$scope.compra.total -= parseFloat(v.precio)
 					$scope.compra.operacionitems.splice(i,1)
-					producto.en_venta = 0
+					$scope.cant_prod_en_compra[producto.id] = 0
 		$scope.no_hay_items = true if $scope.compra.operacionitems.length == 0
 
 	$scope.$on '$locationChangeStart', (event) ->
@@ -46,7 +48,7 @@ angular.module 'Tienda'
 	$scope.editar_precio = ->
 		$scope.compra.total = 0
 		angular.forEach $scope.compra.operacionitems, (v,i) ->
-			importe = v["cantidad"] * v["precio"]
+			importe = v.cantidad * v.precio
 			$scope.compra.total += importe
 
 	$scope.confirmar_compra = () ->

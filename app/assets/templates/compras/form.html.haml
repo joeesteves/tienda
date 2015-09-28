@@ -9,8 +9,13 @@
 
 	%div.col-md-4
 		%div.form-group
-			%input{class: "form-control", type: 'date', 'ng-model': 'compra.fecha'}
-			%select{class: "form-control", 'chosen': true, 'data-placeholder': 'Seleccionar un proveedor...', 'ng-model': 'compra.organizacion_id', 'ng-options': 'organizacion.id as organizacion.nombre for organizacion in organizaciones' }
+			%div{'ng-show': 'es_nuevo'} 
+				%input{class: "form-control", type: 'date', 'ng-model': 'compra.fecha'}
+				%select{class: "form-control",'chosen': true, 'data-placeholder': 'Seleccionar un proveedor...', 'ng-model': 'compra.organizacion_id', 'ng-options': 'organizacion.id as organizacion.nombre for organizacion in organizaciones'}
+			%div{'ng-hide': 'es_nuevo'}
+				%br
+				%h4.text-center.text-warning {{compra.organizacion.nombre}}
+
 				%option
 			%textarea{placeholder: 'Notas...', style: 'width:100%', 'ng-model': 'compra.desc'}
 			%table.table.table-striped
@@ -25,7 +30,7 @@
 						%td {{item.cantidad}}
 						%td {{item.producto.nombre}}
 						%td
-							%input{class: "form-control", type: 'number', 'ng-model': 'item.precio', 'ng-change': 'editar_precio()'}
+							%input{class: "form-control", type: 'textarea', 'ng-model': 'item.precio', 'ng-change': 'editar_precio()'}
 						%td {{item.cantidad * item.precio | number : fractionSize}}
 					%tr{'ng-hide': 'no_hay_items'}
 						%td{class: 'warning', colspan:3} Total
@@ -47,13 +52,13 @@
 									%button{class: 'btn btn-warning btn-sm'}
 										Venta
 										%br
-										%span{class: 'badge', 'ng-hide': 'producto.en_venta <= 0'} {{producto.en_venta}}
+										%span{class: 'badge', 'ng-hide': 'cant_prod_en_compra[producto.id] <= 0'} {{cant_prod_en_compra[producto.id]}}
 							%div.col-md-6
 								%div.row
 									%button{class: 'btn btn-success btn-sm'}
 										Stock 
 										%br
-										%span{class: 'badge', 'ng-hide': 'producto.en_venta + 50 <= 0'} {{50 - producto.en_venta}}
+										%span{class: 'badge', 'ng-hide': 'cant_prod_en_compra[producto.id] + 50 <= 0'} {{50 - cant_prod_en_compra[producto.id] }}
 						%br
 						
 						%div.row

@@ -2,11 +2,11 @@ class ComprasController < ApplicationController
 	before_action :set_compra, only: [:show, :update, :destroy]
 
 	def index
-		render json: Operacion.compras.order(:created_at)
+		render json: Operacion.compras.order(:created_at).as_json
 	end
 
 	def show
-		render json: @compra
+		render json: @compra.as_json
 	end
 	def create
 		op_compra = Operaciontipo.find_by_nombre('compra')
@@ -49,7 +49,7 @@ private
 				item.delete("producto")
 			end
 		end
-		params.require(:compra).permit(:fecha, :desc, :operaciontipo_id, :organizacion_id,
+		params.require(:compra).permit(:fecha, :desc, :operaciontipo_id, :organizacion_id, :total,
 			operacionitems_attributes: [:id, :producto_id, :cantidad, :precio, :_destroy])
 	end
 
