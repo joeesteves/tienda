@@ -1,5 +1,5 @@
 angular.module 'Tienda'
-.controller 'VentasCreateController', (Venta, Producto, $scope, $location) ->
+.controller 'VentasCreateController', (Venta, Producto, Pagotipo, $scope, $location) ->
 	$scope.venta = new Venta()
 	$scope.venta.fecha = new Date()	
 	$scope.productos = Producto.query()
@@ -8,8 +8,14 @@ angular.module 'Tienda'
 	$scope.focus_en_buscador = false
 	$scope.venta.total = 0.00
 	$scope.cant_prod_en_venta = {} # {id_delproducto: cantidad}
+	$scope.precios = Producto.precios()
+	$scope.pagotipos = Pagotipo.query()
 
 	$scope.agregar_item = (producto) ->
+		if $scope.precios[producto.id] == undefined
+			precio = 0 
+		else
+			precio = $scope.precios[producto.id].precio
 		producto_en_lista = false
 		angular.forEach $scope.venta.operacionitems, (v,i) ->
 			if v.producto.id == producto.id
@@ -18,9 +24,10 @@ angular.module 'Tienda'
 				producto_en_lista = true
 				$scope.venta.total += parseFloat(v.precio)
 		if producto_en_lista == false
-			$scope.venta.operacionitems.push({"producto": {"id": producto.id, "nombre": producto.nombre}, "cantidad": 1, "precio": 10})
+			nuevo_item = {"producto": {"id": producto.id, "nombre": producto.nombre}, "cantidad": 1, "precio": precio}
+			$scope.venta.operacionitems.push(nuevo_item)
 			$scope.cant_prod_en_venta[producto.id] = 1
-			$scope.venta.total += 10
+			$scope.venta.total += nuevo_item.precio
 		$scope.no_hay_items = false
 
 	$scope.restar_item = (producto) ->
@@ -50,6 +57,12 @@ angular.module 'Tienda'
 	$scope.elegir_otro = () ->
 		$scope.search = ''
 		$('#buscador').focus()
+
+	$scope.editar_precio = ->
+		$scope.venta.total = 0
+		angular.forEach $scope.venta.operacionitems, (v,i) ->
+			importe = v.cantidad * v.precio
+			$scope.venta.total += importe
 
 
 			

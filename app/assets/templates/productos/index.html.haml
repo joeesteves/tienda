@@ -21,9 +21,12 @@
 							%ul.list-group
 								%li.list-group-item.list-group-item-success
 									%span.glyphicon.glyphicon-user
+								%li.list-group-item.list-group-item-info
+									%span.glyphicon.glyphicon-usd
 						%div.col-md-10
 							%ul.list-group
 								%li.list-group-item.list-group-item-success {{producto.organizacion.nombre}}
+								%li.list-group-item.list-group-item-info {{precios[producto.id].precio || 'sin precio'}}
 					%div.row
 						%div.col-md-6
 							%ul.list-group

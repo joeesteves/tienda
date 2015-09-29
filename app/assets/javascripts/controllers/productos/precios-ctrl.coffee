@@ -11,6 +11,7 @@ angular.module 'Tienda'
 			.then ->
 				producto.actualizando = false
 				producto.margen_original = producto.margen
+				producto.precio = producto.margen * producto.puc
 			.catch ->
 				alert('error carajo!')
 

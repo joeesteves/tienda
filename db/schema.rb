@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20150929030439) do
+ActiveRecord::Schema.define(version: 20150929153422) do
 
   create_table "operaciones", force: :cascade do |t|
     t.date     "fecha"
@@ -21,6 +21,7 @@ ActiveRecord::Schema.define(version: 20150929030439) do
     t.datetime "updated_at",                               null: false
     t.decimal  "total",            precision: 8, scale: 2
     t.integer  "organizacion_id"
+    t.integer  "pagotipo_id"
   end
 
   add_index "operaciones", ["operaciontipo_id"], name: "index_operaciones_on_operaciontipo_id"
@@ -50,6 +51,13 @@ ActiveRecord::Schema.define(version: 20150929030439) do
     t.text     "desc"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+  end
+
+  create_table "pagotipos", force: :cascade do |t|
+    t.string   "nombre"
+    t.decimal  "factor",     precision: 5, scale: 2, default: 1.0
+    t.datetime "created_at",                                       null: false
+    t.datetime "updated_at",                                       null: false
   end
 
   create_table "productos", force: :cascade do |t|

@@ -11,6 +11,7 @@ angular.module 'Tienda'
 		$scope.cant_prod_en_compra = {}
 		$scope.organizaciones = [data.organizacion]
 		actualizar_stock_compras()
+		$scope.precios = Producto.precios()
 		console.log($scope.compra)
 	.catch (err) ->
 		alert(err)
@@ -22,6 +23,10 @@ angular.module 'Tienda'
 
 	$scope.agregar_item = (producto) ->
 		producto_en_lista = false
+		if $scope.precios[producto.id] == undefined
+			puc = 0 
+		else
+			puc = $scope.precios[producto.id].puc
 		angular.forEach $scope.compra.operacionitems, (v,i) ->
 			if v.producto.id == producto.id
 				v.cantidad += 1
@@ -30,8 +35,9 @@ angular.module 'Tienda'
 				v["_destroy"] = false
 				$scope.cant_prod_en_compra[producto.id]
 		if producto_en_lista == false
-			$scope.compra.operacionitems.push({"producto": {"id": producto.id, "nombre": producto.nombre}, "cantidad": 1, "precio": 10})
-			$scope.compra.total += 10
+			nuevo_item = {"producto": {"id": producto.id, "nombre": producto.nombre}, "cantidad": 1, "precio": puc }
+			$scope.compra.operacionitems.push(nuevo_item)
+			$scope.compra.total += nuevo_item.precio
 			$scope.cant_prod_en_compra[producto.id] = 1
 		$scope.no_hay_items = false
 

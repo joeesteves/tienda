@@ -11,6 +11,8 @@
 		%br
 		%input{type: 'date', 'ng-model': 'venta.fecha'}
 		%textarea{placeholder: 'Notas...', style: 'width:100%', 'ng-model': 'venta.desc'}
+		%div{'ng-repeat': 'cp in pagotipos'}
+			%input{type: 'radio', 'ng-model': 'venta.pagotipo_id', 'ng-value': 'cp.id'} {{cp.nombre}} ({{cp.factor}})
 		%table.table.table-striped
 			%thead
 				%tr
@@ -22,7 +24,8 @@
 				%tr{'ng-repeat': 'item in venta.operacionitems', 'ng-hide': 'item._destroy'}
 					%td {{item.cantidad}}
 					%td {{item.producto.nombre}}
-					%td {{item.precio}}
+					%td 
+						%input{class: "form-control", type: 'text', 'ng-model': 'item.precio', 'ng-change': 'editar_precio()'}
 					%td {{item.cantidad * item.precio | number : fractionSize}}
 				%tr{'ng-hide': 'no_hay_items'}
 					%td{class: 'warning', colspan:3} Total

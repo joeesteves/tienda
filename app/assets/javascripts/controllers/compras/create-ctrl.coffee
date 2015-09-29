@@ -13,6 +13,10 @@ angular.module 'Tienda'
 	$scope.precios = Producto.precios()
 
 	$scope.agregar_item = (producto) ->
+		if $scope.precios[producto.id] == undefined
+			puc = 0 
+		else
+			puc = $scope.precios[producto.id].puc
 		producto_en_lista = false
 		angular.forEach $scope.compra.operacionitems, (v,i) ->
 			importe = v.cantidad * v.precio
@@ -22,9 +26,10 @@ angular.module 'Tienda'
 				$scope.cant_prod_en_compra[producto.id] = v.cantidad
 				producto_en_lista = true
 		if producto_en_lista == false
-			$scope.compra.operacionitems.push({"producto": {"id": producto.id, "nombre": producto.nombre}, "cantidad": 1, "precio": $scope.precios[producto.id].precio})
+			nuevo_item = {"producto": {"id": producto.id, "nombre": producto.nombre}, "cantidad": 1, "precio": puc}
+			$scope.compra.operacionitems.push(nuevo_item)
 			$scope.cant_prod_en_compra[producto.id] = 1
-			$scope.compra.total += parseFloat($scope.precios[producto.id].precio)
+			$scope.compra.total += parseFloat(nuevo_item.precio)
 		$scope.no_hay_items = false
 		$scope.compra.organizacion_id = producto.organizacion_id if $scope.compra.operacionitems.length == 1
 

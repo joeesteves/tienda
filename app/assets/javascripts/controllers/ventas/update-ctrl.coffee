@@ -1,5 +1,5 @@
 angular.module 'Tienda'
-.controller 'VentasUpdateController', (Venta, Producto, $scope, $location, $routeParams) ->
+.controller 'VentasUpdateController', (Venta, Producto, Pagotipo, $scope, $location, $routeParams) ->
 	Venta.get({id: $routeParams.id}).$promise
 	.then (data) ->
 		$scope.venta = data
@@ -9,6 +9,7 @@ angular.module 'Tienda'
 		$scope.productos = Producto.query()
 		$scope.no_hay_items = false
 		$scope.venta.total = parseFloat($scope.venta.total)
+		$scope.pagotipos = Pagotipo.query()
 		console.log($scope.cant_prod_en_venta)
 	.catch (err) ->
 		alert(err)
@@ -19,6 +20,11 @@ angular.module 'Tienda'
 
 	$scope.agregar_item = (producto) ->
 		producto_en_lista = false
+		if $scope.precios[producto.id] == undefined
+			precio = 0 
+		else
+			precio = $scope.precios[producto.id].precio
+		producto_en_lista = false
 		angular.forEach $scope.venta.operacionitems, (v,i) ->
 			if v.producto.id == producto.id
 				v.cantidad += 1
@@ -27,8 +33,9 @@ angular.module 'Tienda'
 				$scope.venta.total += parseFloat(v.precio)
 				v["_destroy"] = false
 		if producto_en_lista == false
-			$scope.venta.operacionitems.push({"producto": {"id": producto.id, "nombre": producto.nombre}, "cantidad": 1, "precio": 10})
-			$scope.venta.total += 10
+			nuevo_item = {"producto": {"id": producto.id, "nombre": producto.nombre}, "cantidad": 1, "precio": precio}
+			$scope.venta.operacionitems.push(nuevo_item)
+			$scope.venta.total += nuevo_item.precio
 			$scope.cant_prod_en_venta[producto.id] = 1
 		$scope.no_hay_items = false
 

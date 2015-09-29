@@ -1,0 +1,27 @@
+%div.container
+	%div.col-md-1
+		%a{class: 'btn btn-success', 'ng-href': '#/productos'} 	Volver
+	%div.col-md-11
+		%input{'ng-model': 'search', class: 'form-control', placeholder: 'Buscar...'}
+%br
+
+%div.container
+	%div.row
+		%table.table.table-striped
+			%thead
+				%tr
+					%th Condicion
+					%th Factor
+					%th
+						%span{class: 'glyphicon glyphicon-refresh'} 
+			%tbody
+				%tr{'ng-repeat': 'pagotipo in pagotipos', 'ng-init': 'pagotipo.factor_original = pagotipo.factor'}
+					%td {{pagotipo.nombre}}
+					%td
+						%input{tabindex: 1, class: 'form-control', style: 'width:100px', type: 'text','ng-model': 'pagotipo.factor', 'ng-blur': 'actualiza_factor(pagotipo)'}
+					%td
+						%span{class: 'glyphicon glyphicon-time', 'ng-show': 'pagotipo.actualizando'} 
+						%span{class: 'glyphicon glyphicon-ok', 'ng-hide': 'pagotipo.actualizando'} 
+%t-confirmation-dialog
+
+

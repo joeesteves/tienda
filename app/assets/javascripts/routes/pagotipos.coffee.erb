@@ -1,0 +1,6 @@
+angular.module 'Tienda' 
+.config ($routeProvider) ->
+	$routeProvider
+	.when '/pagotipos',
+		templateUrl: '<%= asset_path("pagotipos") %>'
+		controller: 'PagotiposController'
