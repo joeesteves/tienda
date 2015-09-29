@@ -1,8 +1,8 @@
 %div.container
 	%div.col-md-1
-		%a{class: 'btn btn-success', 'ng-href': '#/productos/new'} 	Nueva
+		%a{class: 'btn btn-success', 'ng-href': '#/productos'} 	Volver
 	%div.col-md-11
-		%input{'ng-model': 'search.$', class: 'form-control', placeholder: 'Buscar...'}
+		%input{'ng-model': 'search', class: 'form-control', placeholder: 'Buscar...'}
 %br
 
 %div.container
@@ -11,16 +11,23 @@
 			%thead
 				%tr
 					%th Producto
-					%th Precio
+					%th PUC
 					%th F.U.C
+					%th Margen
+					%th Precio
+					%th
+						%span{class: 'glyphicon glyphicon-refresh'} 
 			%tbody
-				%tr{'ng-repeat': 'producto in productos'}
+				%tr{'ng-repeat': '(id, producto) in productos | objeto:search', 'ng-init': 'producto.actualizando = false; producto.margen_original = producto.margen'}
 					%td {{producto.nombre}}
-					%td {{producto.precio}}
+					%td {{producto.puc}}
 					%td {{producto.fuc}}
-				%tr 
-					%td{class: 'info', colspan: 4, 'marked': 'venta.desc'}
-
+					%td
+						%input{tabindex: 1, class: 'form-control', style: 'width:100px', type: 'text','ng-model': 'producto.margen', 'ng-blur': 'actualiza_margen(producto)'}
+					%td {{producto.precio}}
+					%td
+						%span{class: 'glyphicon glyphicon-time', 'ng-show': 'producto.actualizando'} 
+						%span{class: 'glyphicon glyphicon-ok', 'ng-hide': 'producto.actualizando'} 
 %t-confirmation-dialog
 
 
