@@ -7,6 +7,9 @@ angular.module 'Tienda'
 	.when '/productos/new',
 		templateUrl: '<%= asset_path("productos/form") %>'
 		controller: 'ProductosCreateController'
+	.when '/productos/precios',
+		templateUrl: '<%= asset_path("productos/precios") %>'
+		controller: 'ProductosPreciosController'
 	.when '/productos/:id',
 		templateUrl: '<%= asset_path("productos/form") %>'
 		controller: 'ProductosUpdateController'

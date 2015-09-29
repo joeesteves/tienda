@@ -1,0 +1,26 @@
+%div.container
+	%div.col-md-1
+		%a{class: 'btn btn-success', 'ng-href': '#/productos/new'} 	Nueva
+	%div.col-md-11
+		%input{'ng-model': 'search.$', class: 'form-control', placeholder: 'Buscar...'}
+%br
+
+%div.container
+	%div.row
+		%table.table.table-striped
+			%thead
+				%tr
+					%th Producto
+					%th Precio
+					%th F.U.C
+			%tbody
+				%tr{'ng-repeat': 'producto in productos'}
+					%td {{producto.nombre}}
+					%td {{producto.precio}}
+					%td {{producto.fuc}}
+				%tr 
+					%td{class: 'info', colspan: 4, 'marked': 'venta.desc'}
+
+%t-confirmation-dialog
+
+

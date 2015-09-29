@@ -26,6 +26,11 @@ class ProductosController < ApplicationController
 		if @producto.destroy
 			head :no_content
 		end 
+	end	
+
+	def precios
+		@precios = Producto.precios
+		render json: @precios
 	end
 
 

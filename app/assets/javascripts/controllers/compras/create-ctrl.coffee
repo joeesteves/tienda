@@ -10,6 +10,7 @@ angular.module 'Tienda'
 	$scope.focus_en_buscador = false
 	$scope.compra.total = 0.00
 	$scope.cant_prod_en_compra = {}
+	$scope.precios = Producto.precios()
 
 	$scope.agregar_item = (producto) ->
 		producto_en_lista = false
@@ -21,9 +22,9 @@ angular.module 'Tienda'
 				$scope.cant_prod_en_compra[producto.id] = v.cantidad
 				producto_en_lista = true
 		if producto_en_lista == false
-			$scope.compra.operacionitems.push({"producto": {"id": producto.id, "nombre": producto.nombre}, "cantidad": 1, "precio": 10})
+			$scope.compra.operacionitems.push({"producto": {"id": producto.id, "nombre": producto.nombre}, "cantidad": 1, "precio": $scope.precios[producto.id].precio})
 			$scope.cant_prod_en_compra[producto.id] = 1
-			$scope.compra.total += 10
+			$scope.compra.total += parseFloat($scope.precios[producto.id].precio)
 		$scope.no_hay_items = false
 		$scope.compra.organizacion_id = producto.organizacion_id if $scope.compra.operacionitems.length == 1
 

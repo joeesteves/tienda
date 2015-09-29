@@ -3,7 +3,9 @@ Rails.application.routes.draw do
   get 'inicio/index'
   resources :ventas
   resources :compras
-  resources :productos
+  resources :productos do 
+    get 'precios', on: :collection
+  end
   resources :organizaciones  
   resources :operaciones
   
