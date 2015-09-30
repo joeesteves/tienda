@@ -11,7 +11,10 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20150929153422) do
+ActiveRecord::Schema.define(version: 20150930142449) do
+
+  # These are extensions that must be enabled in order to support this database
+  enable_extension "plpgsql"
 
   create_table "operaciones", force: :cascade do |t|
     t.date     "fecha"
@@ -22,9 +25,10 @@ ActiveRecord::Schema.define(version: 20150929153422) do
     t.decimal  "total",            precision: 8, scale: 2
     t.integer  "organizacion_id"
     t.integer  "pagotipo_id"
+    t.decimal  "pago",             precision: 8, scale: 2
   end
 
-  add_index "operaciones", ["operaciontipo_id"], name: "index_operaciones_on_operaciontipo_id"
+  add_index "operaciones", ["operaciontipo_id"], name: "index_operaciones_on_operaciontipo_id", using: :btree
 
   create_table "operacionitems", force: :cascade do |t|
     t.integer  "producto_id"
@@ -35,7 +39,7 @@ ActiveRecord::Schema.define(version: 20150929153422) do
     t.integer  "operacion_id"
   end
 
-  add_index "operacionitems", ["producto_id"], name: "index_operacionitems_on_producto_id"
+  add_index "operacionitems", ["producto_id"], name: "index_operacionitems_on_producto_id", using: :btree
 
   create_table "operaciontipos", force: :cascade do |t|
     t.string   "nombre"
@@ -70,6 +74,6 @@ ActiveRecord::Schema.define(version: 20150929153422) do
     t.decimal  "margen",          precision: 5, scale: 2, default: 1.0
   end
 
-  add_index "productos", ["organizacion_id"], name: "index_productos_on_organizacion_id"
+  add_index "productos", ["organizacion_id"], name: "index_productos_on_organizacion_id", using: :btree
 
 end

@@ -31,6 +31,13 @@
 				%tr{'ng-hide': 'no_hay_items'}
 					%td{class: 'warning', colspan:3} Total
 					%td{class: 'warning'} {{venta.total | number : fractionSize}}
+				%tr
+					%td{ colspan:4}
+						%div.input-group
+							%span.input-group-addon	
+								Seña &nbsp 
+								%input{type: 'checkbox', 'ng-true-value': 'true', 'ng-false-value': 'false', 'ng-model': 'venta.reserva'}
+							%input{type: 'text', class: 'form-control', 'ng-model': 'venta.pago', 'ng-show': 'venta.reserva == true', 'ng-disabled': 'venta.reserva != true'}
 				%tr{'ng-show': 'no_hay_items'}
 					%td{class: 'info text-right', colspan:4}
 						Arme su orden de venta ... 

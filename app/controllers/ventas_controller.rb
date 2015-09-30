@@ -52,7 +52,7 @@ private
 		# 	params[:venta].delete("pagotipo")
 		# end
 
-		params.require(:venta).permit(:fecha, :desc, :total, :operaciontipo_id, :pagotipo_id, operacionitems_attributes: [:id, :producto_id, :cantidad, :precio, :_destroy])
+		params.require(:venta).permit(:fecha, :desc, :total, :pago, :operaciontipo_id, :pagotipo_id, operacionitems_attributes: [:id, :producto_id, :cantidad, :precio, :_destroy])
 	end
 
 end

@@ -52,6 +52,7 @@ angular.module 'Tienda'
 			respuesta = confirm("Desea descartar la orden de venta?")
 			event.preventDefault() if !respuesta
 	$scope.confirmar_venta = () ->
+		$scope.venta.pago = $scope.venta.total if $scope.venta.reserva != true
 		$scope.venta.$save()
 		.then ->
 			$scope.no_hay_items = true

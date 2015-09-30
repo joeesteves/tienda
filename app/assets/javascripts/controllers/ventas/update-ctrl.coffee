@@ -4,11 +4,12 @@ angular.module 'Tienda'
 	.then (data) ->
 		$scope.venta = data
 		$scope.venta.fecha = new Date($scope.venta.fecha)
+		$scope.venta.reserva = ($scope.venta.pago != $scope.venta.total)
+		$scope.venta.total = parseFloat($scope.venta.total)
 		$scope.cant_prod_en_venta = {} # {id_delproducto: cantidad}
 		actualizar_stocks()
 		$scope.productos = Producto.query()
 		$scope.no_hay_items = false
-		$scope.venta.total = parseFloat($scope.venta.total)
 		$scope.pagotipos = Pagotipo.query()
 		$scope.venta.factor_original = $scope.venta.pagotipo.factor
 		$scope.precios = Producto.precios()
@@ -62,6 +63,7 @@ angular.module 'Tienda'
 			event.preventDefault() if !respuesta
 
 	$scope.confirmar_venta = () ->
+		$scope.venta.pago = $scope.venta.total if $scope.venta.reserva != true
 		$scope.venta.$update()
 		.then ->
 			$scope.no_hay_items = true
