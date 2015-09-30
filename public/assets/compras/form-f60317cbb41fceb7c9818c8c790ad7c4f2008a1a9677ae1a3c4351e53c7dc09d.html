@@ -63,7 +63,7 @@
               <div class='col-md-6'>
                 <div class='row'>
                   <button class='btn btn-warning btn-sm'>
-                    Venta
+                    Compra
                     <br>
                     <span class='badge' ng-hide='cant_prod_en_compra[producto.id] &lt;= 0'>{{cant_prod_en_compra[producto.id]}}</span>
                   </button>
@@ -74,7 +74,7 @@
                   <button class='btn btn-success btn-sm'>
                     Stock
                     <br>
-                    <span class='badge' ng-hide='cant_prod_en_compra[producto.id] + 50 &lt;= 0'>{{50 - cant_prod_en_compra[producto.id] }}</span>
+                    <span class='badge' ng-hide='cant_prod_en_compra[producto.id] + 50 &lt;= 0'>{{50 + cant_prod_en_compra[producto.id] }}</span>
                   </button>
                 </div>
               </div>

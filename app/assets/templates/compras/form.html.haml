@@ -50,7 +50,7 @@
 							%div.col-md-6
 								%div.row
 									%button{class: 'btn btn-warning btn-sm'}
-										Venta
+										Compra
 										%br
 										%span{class: 'badge', 'ng-hide': 'cant_prod_en_compra[producto.id] <= 0'} {{cant_prod_en_compra[producto.id]}}
 							%div.col-md-6
@@ -58,7 +58,7 @@
 									%button{class: 'btn btn-success btn-sm'}
 										Stock 
 										%br
-										%span{class: 'badge', 'ng-hide': 'cant_prod_en_compra[producto.id] + 50 <= 0'} {{50 - cant_prod_en_compra[producto.id] }}
+										%span{class: 'badge', 'ng-hide': 'cant_prod_en_compra[producto.id] + 50 <= 0'} {{50 + cant_prod_en_compra[producto.id] }}
 						%br
 						
 						%div.row

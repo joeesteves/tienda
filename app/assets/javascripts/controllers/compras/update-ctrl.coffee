@@ -32,7 +32,7 @@ angular.module 'Tienda'
 				producto_en_lista = true
 				$scope.compra.total += parseFloat(v.precio)
 				v["_destroy"] = false
-				$scope.cant_prod_en_compra[producto.id]
+				$scope.cant_prod_en_compra[producto.id] = v.cantidad 
 		if producto_en_lista == false
 			nuevo_item = {"producto": {"id": producto.id, "nombre": producto.nombre}, "cantidad": 1, "precio": puc }
 			$scope.compra.operacionitems.push(nuevo_item)

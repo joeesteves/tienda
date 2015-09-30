@@ -47039,7 +47039,7 @@ angular.module('ui.mask', [])
           producto_en_lista = true;
           $scope.compra.total += parseFloat(v.precio);
           v["_destroy"] = false;
-          return $scope.cant_prod_en_compra[producto.id];
+          return $scope.cant_prod_en_compra[producto.id] = v.cantidad;
         }
       });
       if (producto_en_lista === false) {
@@ -47577,10 +47577,10 @@ angular.module('ui.mask', [])
       templateUrl: '/assets/compras/index-f237fc60e8d40389ea89f63c9a190dc17d3cec7305389c82ca7a08ed5b0b57bc.html',
       controller: 'ComprasIndexController'
     }).when('/compras/new', {
-      templateUrl: '/assets/compras/form-c23d9633eef5a37dcf3e8ab016c95feb5df4d3f60d73b5dbe1fa60c17fb647e6.html',
+      templateUrl: '/assets/compras/form-f60317cbb41fceb7c9818c8c790ad7c4f2008a1a9677ae1a3c4351e53c7dc09d.html',
       controller: 'ComprasCreateController'
     }).when('/compras/:id', {
-      templateUrl: '/assets/compras/form-c23d9633eef5a37dcf3e8ab016c95feb5df4d3f60d73b5dbe1fa60c17fb647e6.html',
+      templateUrl: '/assets/compras/form-f60317cbb41fceb7c9818c8c790ad7c4f2008a1a9677ae1a3c4351e53c7dc09d.html',
       controller: 'ComprasUpdateController'
     });
   });
