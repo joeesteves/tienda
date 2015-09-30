@@ -1,0 +1,46 @@
+<div class='container'>
+  <div class='col-md-1'>
+    <a class='btn btn-success' ng-href='#/organizaciones/new'>Nueva</a>
+  </div>
+  <div class='col-md-11'>
+    <input class='form-control' ng-model='search.$' placeholder='Buscar...'>
+  </div>
+</div>
+<br>
+<div class='container'>
+  <div class='container col-md-6' ng-repeat='organizacion in organizaciones | orderBy: "nombre" | filter:search'>
+    <div class='panel panel-info'>
+      <div class='panel-body'>
+        <div class='row'>
+          <div class='col-md-12'>
+            <a ng-href='#/organizaciones/{{organizacion.id}}'>
+              <h1 class='success text-center'>{{organizacion.nombre}}</h1>
+            </a>
+          </div>
+        </div>
+        <div class='row'>
+          <div class='col-md-12'>
+            <li class='list-group-item list-group-item-success'>
+              <span class='glyphicon glyphicon-envelope'>&nbsp {{organizacion.email}}</span>
+            </li>
+            <li class='list-group-item list-group-item-info'>
+              <span class='glyphicon glyphicon-phone-alt'>&nbsp {{organizacion.telefono}}</span>
+            </li>
+            <li class='list-group-item list-group-item-success'>
+              <span class='glyphicon glyphicon-list-alt'>&nbsp {{organizacion.id_fiscal}}</span>
+            </li>
+          </div>
+        </div>
+        <div class='row'>
+          <div class='col-md-12'>
+            <li class='list-group-item list-group-item-info'>{{organizacion.desc}}</li>
+          </div>
+        </div>
+      </div>
+      <div class='panel-footer text-right'>
+        <span class='glyphicon glyphicon-remove text-danger' data-target='#myModal' data-toggle='modal' ng-click='pre_borrar(organizacion)'></span>
+      </div>
+    </div>
+  </div>
+</div>
+<t-confirmation-dialog></t-confirmation-dialog>
