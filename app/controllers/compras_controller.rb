@@ -1,8 +1,14 @@
 class ComprasController < ApplicationController
 	before_action :set_compra, only: [:show, :update, :destroy]
-
+	
 	def index
-		render json: Operacion.compras.order(:created_at).as_json
+		@compras = Operacion.compras.order(:created_at).as_json
+	
+		respond_to do |format|
+			format.json	{render json: @compras.as_json}
+			format.csv { 
+				send_data Operacion.exportar('compra').to_csv_compras }
+		end
 	end
 
 	def show

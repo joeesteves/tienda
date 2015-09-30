@@ -3,6 +3,8 @@ angular.module 'Tienda'
 	Venta.query().$promise
 	.then (data) ->
 		angular.forEach data, (venta) ->
+			venta.reserva = (venta.total != venta.pago)
+			venta.estado = 'señado' if venta.reserva == true
 			venta.idsearch = '..' + venta.id
 		$scope.ventas = data
 

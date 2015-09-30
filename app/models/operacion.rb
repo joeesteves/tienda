@@ -18,4 +18,9 @@ class Operacion < ActiveRecord::Base
 		super (options || { include: [{operacionitems: {except: [:created_at, :updated_at], include: :producto}}, :organizacion, :pagotipo]})
 	end
 
+	def self.exportar(operaciontipo)
+		Operacionitem.joins(operacion: :operaciontipo, producto: :organizacion).where("operaciontipos.nombre = '#{operaciontipo}'")
+	end
+
+	
 end

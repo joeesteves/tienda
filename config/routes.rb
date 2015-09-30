@@ -1,8 +1,8 @@
 Rails.application.routes.draw do
   root 'inicio#index'
   get 'inicio/index'
-  resources :ventas
-  resources :compras
+  resources :ventas, defaults: { :format => 'json' }
+  resources :compras, defaults: { :format => 'json' }
   resources :productos do 
     get 'precios', on: :collection
   end

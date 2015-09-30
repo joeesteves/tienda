@@ -47370,6 +47370,10 @@ angular.module('ui.mask', [])
   angular.module('Tienda').controller('VentasIndexController', function(Venta, Producto, $scope) {
     Venta.query().$promise.then(function(data) {
       angular.forEach(data, function(venta) {
+        venta.reserva = venta.total !== venta.pago;
+        if (venta.reserva === true) {
+          venta.estado = 'señado';
+        }
         return venta.idsearch = '..' + venta.id;
       });
       return $scope.ventas = data;
@@ -47570,7 +47574,7 @@ angular.module('ui.mask', [])
 (function() {
   angular.module('Tienda').config(function($routeProvider) {
     return $routeProvider.when('/compras', {
-      templateUrl: '/assets/compras/index-28f28ad7a1910b4f68666ca7b5f6bb7c2ed713ae228e15c33ec31c93170e9580.html',
+      templateUrl: '/assets/compras/index-f237fc60e8d40389ea89f63c9a190dc17d3cec7305389c82ca7a08ed5b0b57bc.html',
       controller: 'ComprasIndexController'
     }).when('/compras/new', {
       templateUrl: '/assets/compras/form-c23d9633eef5a37dcf3e8ab016c95feb5df4d3f60d73b5dbe1fa60c17fb647e6.html',
@@ -47627,7 +47631,7 @@ angular.module('ui.mask', [])
 (function() {
   angular.module('Tienda').config(function($routeProvider) {
     return $routeProvider.when('/ventas', {
-      templateUrl: '/assets/ventas/index-dd5ed2f5d14d3d1f5d3be47b9bdfd497d6fc41a54b3601bde4013c166aa209c7.html',
+      templateUrl: '/assets/ventas/index-6a66fd5b9b86069c09f2c46d802ab3abe6276c89d33585b57f2198f69dd12926.html',
       controller: 'VentasIndexController'
     }).when('/ventas/new', {
       templateUrl: '/assets/ventas/form-f74bc7180c8f793f4bf47de743eae8c0c888564c3e04098744efd9a7bbd9b735.html',

@@ -1,8 +1,11 @@
 %div.container
 	%div.col-md-1
 		%a{class: 'btn btn-success', 'ng-href': '#/compras/new'} Nueva
-	%div.col-md-11
+	%div.col-md-10
 		%input{'ng-model': 'search.$', class: 'form-control', placeholder: 'Buscar...'}
+	%div.col-md-1
+		%a{class: 'btn btn-warning', 'ng-href': 'compras.csv'} Exportar
+
 %br
 
 %div.container

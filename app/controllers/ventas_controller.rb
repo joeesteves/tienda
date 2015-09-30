@@ -2,7 +2,13 @@ class VentasController < ApplicationController
 	before_action :set_venta, only: [:show, :update, :destroy]
 
 	def index
-		render json: Operacion.ventas.order(:created_at).as_json
+		@ventas = Operacion.ventas.order(:created_at)
+	
+		respond_to do |format|
+			format.json	{render json: @ventas.as_json}
+			format.csv { send_data  Operacion.exportar('venta').to_csv_ventas }
+		end
+
 	end
 
 	def show
@@ -31,6 +37,8 @@ class VentasController < ApplicationController
 			head :no_content
 		end
 	end
+
+
 
 private
 

@@ -1,8 +1,10 @@
 %div.container
 	%div.col-md-1
 		%a{class: 'btn btn-success', 'ng-href': '#/ventas/new'} Nueva
-	%div.col-md-11
+	%div.col-md-10
 		%input{'ng-model': 'search.$', class: 'form-control', placeholder: 'Buscar...'}
+	%div.col-md-1
+		%a{class: 'btn btn-warning', 'ng-href': 'ventas.csv'} Exportar
 %br
 
 %div.container
@@ -34,7 +36,12 @@
 									%td{class: 'warning'} {{venta.total | number : fractionSize}}
 								%tr 
 									%td{class: 'info', colspan: 4, 'marked': 'venta.desc'}
-				%div.panel-footer.text-right
-					%span{class: 'glyphicon glyphicon-remove text-danger', 'ng-click': 'pre_borrar(venta)', 'data-toggle': 'modal', 'data-target': '#myModal'}
+				%div.panel-footer
+					%div.row
+						%div.col-md-6
+							%span{class: 'glyphicon glyphicon-exclamation-sign text-warning', 'ng-show': 'venta.reserva'} &nbsp Señado
+						%div.col-md-6.text-right
+							%span{class: 'glyphicon glyphicon-remove text-danger', 'ng-click': 'pre_borrar(venta)', 'data-toggle': 'modal', 'data-target': '#myModal'}
+
 		%div{class: 'clearfix', 'ng-if': ' ($index+1) % 4 == 0'}
 %t-confirmation-dialog
