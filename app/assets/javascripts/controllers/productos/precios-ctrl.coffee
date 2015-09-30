@@ -11,7 +11,7 @@ angular.module 'Tienda'
 			.then ->
 				producto.actualizando = false
 				producto.margen_original = producto.margen
-				producto.precio = producto.margen * producto.puc
+				producto.precio = parseFloat((producto.margen * producto.puc).toFixed(2))
 			.catch ->
 				alert('error carajo!')
 
