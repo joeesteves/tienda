@@ -1,6 +1,7 @@
 class Operacion < ActiveRecord::Base
 	belongs_to :operaciontipo
 	belongs_to :organizacion
+	belongs_to :pagotipo
 	has_many :operacionitems, dependent: :destroy 
 	accepts_nested_attributes_for :operacionitems, allow_destroy: true
 	validates :operacionitems, presence: {message: '- Debe habar al menos un item para la operación'}
@@ -14,7 +15,7 @@ class Operacion < ActiveRecord::Base
 	end 
 
 	def as_json(options = nil)
-		super (options || { include: [{operacionitems: {except: [:created_at, :updated_at], include: :producto}}, :organizacion]})
+		super (options || { include: [{operacionitems: {except: [:created_at, :updated_at], include: :producto}}, :organizacion, :pagotipo]})
 	end
 
 end

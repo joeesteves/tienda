@@ -1,8 +1,9 @@
 angular.module 'Tienda' 
 .controller 'ProductosIndexController', (Producto, $scope, $sanitize) ->
-	$scope.productos = Producto.query()
-	$scope.precios = Producto.precios()
-	console.log($scope.productos)
+	Producto.query().$promise.then (data) ->
+		$scope.productos = data
+	Producto.precios().$promise.then (data) ->
+		$scope.precios = data
 	$scope.pre_borrar = (objeto_a_borrar) ->
 		$scope.objeto_a_borrar = objeto_a_borrar
 	$scope.borrar = () ->

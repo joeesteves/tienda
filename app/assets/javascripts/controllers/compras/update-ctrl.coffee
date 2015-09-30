@@ -12,7 +12,6 @@ angular.module 'Tienda'
 		$scope.organizaciones = [data.organizacion]
 		actualizar_stock_compras()
 		$scope.precios = Producto.precios()
-		console.log($scope.compra)
 	.catch (err) ->
 		alert(err)
 	

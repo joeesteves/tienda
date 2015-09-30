@@ -1,8 +1,8 @@
 %div.container
 	%div.col-md-1
-		%a{class: 'btn btn-warning', 'ng-href': '#/ventas'}Cancelar
+		%a{class: 'btn btn-warning', 'ng-href': '#/ventas'} Cancelar
 	%div.col-md-3
-		%button{class: 'btn btn-success', style: 'width:100%', 'ng-disabled': 'no_hay_items', 'ng-click': 'confirmar_venta()'}Confirmar
+		%button{class: 'btn btn-success', style: 'width:100%', 'ng-disabled': 'no_hay_items', 'ng-click': 'confirmar_venta()'} Confirmar
 	%div.col-md-8
 		%input{'id': 'buscador', 'ng-model': 'search.$', class: 'form-control', placeholder: 'Buscar...'}
 	%br
@@ -11,8 +11,9 @@
 		%br
 		%input{type: 'date', 'ng-model': 'venta.fecha'}
 		%textarea{placeholder: 'Notas...', style: 'width:100%', 'ng-model': 'venta.desc'}
-		%div{'ng-repeat': 'cp in pagotipos'}
-			%input{type: 'radio', 'ng-model': 'venta.pagotipo_id', 'ng-value': 'cp.id'} {{cp.nombre}} ({{cp.factor}})
+		%div.row
+			%div{'ng-repeat': 'pagotipo in pagotipos', class: 'col-md-4'}
+				%input{name:'cp', type: 'radio', 'ng-model': 'venta.pagotipo_id', 'ng-value': 'pagotipo.id', 'ng-change': 'actualizar_precio_pagotipo(pagotipo)'} {{pagotipo.nombre}} ({{pagotipo.factor}})
 		%table.table.table-striped
 			%thead
 				%tr

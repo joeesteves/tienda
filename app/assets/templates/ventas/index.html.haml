@@ -6,33 +6,35 @@
 %br
 
 %div.container
-	%div{'ng-repeat': 'venta in ventas | orderBy: "created_at" | filter:search', class: 'container col-md-3'}
-		%div.panel.panel-info		
-			%div.panel-body
-				%div.row
-					%div.col-md-12
-						%a{'ng-href': '#/ventas/{{venta.id}}'}
-							%h4.text-left {{venta.fecha | date: 'mediumDate'}}
-							%h1.success.text-center V# {{venta.id}}
-				%div.row
-					%table.table.table-striped
-						%thead
-							%tr
-								%th #
-								%th Producto
-								%th Precio
-								%th Importe
-						%tbody
-							%tr{'ng-repeat': 'item in venta.operacionitems'}
-								%td {{item.cantidad}}
-								%td {{item.producto.nombre}}
-								%td {{item.precio}}
-								%td {{item.cantidad * item.precio}}
-							%tr
-								%td{class: 'warning', colspan: 3} Total
-								%td{class: 'warning'} {{venta.total | number : fractionSize}}
-							%tr 
-								%td{class: 'info', colspan: 4, 'marked': 'venta.desc'}
-			%div.panel-footer.text-right
-				%span{class: 'glyphicon glyphicon-remove text-danger', 'ng-click': 'pre_borrar(venta)', 'data-toggle': 'modal', 'data-target': '#myModal'}
+	%div{'ng-repeat': 'venta in ventas | orderBy: "created_at" | filter:search track by $index'}
+		%div{class: 'col-md-3'}
+			%div.panel.panel-info		
+				%div.panel-body
+					%div.row
+						%div.col-md-12
+							%a{'ng-href': '#/ventas/{{venta.id}}'}
+								%h4.text-left {{venta.fecha | date: 'mediumDate'}}
+								%h1.success.text-center V# {{venta.id}}
+					%div.row
+						%table.table.table-striped
+							%thead
+								%tr
+									%th #
+									%th Producto
+									%th Precio
+									%th Importe
+							%tbody
+								%tr{'ng-repeat': 'item in venta.operacionitems'}
+									%td {{item.cantidad}}
+									%td {{item.producto.nombre}}
+									%td {{item.precio}}
+									%td {{item.cantidad * item.precio}}
+								%tr
+									%td{class: 'warning', colspan: 3} Total
+									%td{class: 'warning'} {{venta.total | number : fractionSize}}
+								%tr 
+									%td{class: 'info', colspan: 4, 'marked': 'venta.desc'}
+				%div.panel-footer.text-right
+					%span{class: 'glyphicon glyphicon-remove text-danger', 'ng-click': 'pre_borrar(venta)', 'data-toggle': 'modal', 'data-target': '#myModal'}
+		%div{class: 'clearfix', 'ng-if': ' ($index+1) % 4 == 0'}
 %t-confirmation-dialog

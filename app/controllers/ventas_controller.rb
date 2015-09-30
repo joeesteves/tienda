@@ -6,6 +6,7 @@ class VentasController < ApplicationController
 	end
 
 	def show
+		puts @venta.fecha
 		render json: @venta.as_json
 	end
 	
@@ -46,6 +47,11 @@ private
 				item.delete("producto")
 			end
 		end
+		# if params[:venta][:pagotipo]
+		# 	params[:venta][:pagotipo_id] = params[:venta][:pagotipo][:id]
+		# 	params[:venta].delete("pagotipo")
+		# end
+
 		params.require(:venta).permit(:fecha, :desc, :total, :operaciontipo_id, :pagotipo_id, operacionitems_attributes: [:id, :producto_id, :cantidad, :precio, :_destroy])
 	end
 
