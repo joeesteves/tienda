@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20150930142449) do
+ActiveRecord::Schema.define(version: 20150930230439) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -76,4 +76,7 @@ ActiveRecord::Schema.define(version: 20150930142449) do
 
   add_index "productos", ["organizacion_id"], name: "index_productos_on_organizacion_id", using: :btree
 
+  add_foreign_key "operacionitems", "operaciones"
+  add_foreign_key "operacionitems", "productos"
+  add_foreign_key "productos", "organizaciones"
 end
