@@ -1,0 +1,43 @@
+<div class='container'>
+  <div class='col-md-1'>
+    <a class='btn btn-success' ng-href='#/productos'>Volver</a>
+  </div>
+  <div class='col-md-11'>
+    <input class='form-control' ng-model='search' placeholder='Buscar...'>
+  </div>
+</div>
+<br>
+<div class='container'>
+  <div class='row'>
+    <table class='table table-striped'>
+      <thead>
+        <tr>
+          <th>Producto</th>
+          <th>PUC</th>
+          <th>F.U.C</th>
+          <th>Margen</th>
+          <th>Precio</th>
+          <th>
+            <span class='glyphicon glyphicon-refresh'></span>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr ng-init='producto.actualizando = false; producto.margen_original = producto.margen' ng-repeat='(id, producto) in productos | objeto:search'>
+          <td>{{producto.nombre}}</td>
+          <td>{{producto.puc}}</td>
+          <td>{{producto.fuc}}</td>
+          <td>
+            <input class='form-control' ng-blur='actualiza_margen(producto)' ng-model='producto.margen' style='width:100px' tabindex='1' type='text'>
+          </td>
+          <td>{{producto.precio}}</td>
+          <td>
+            <span class='glyphicon glyphicon-time' ng-show='producto.actualizando'></span>
+            <span class='glyphicon glyphicon-ok' ng-hide='producto.actualizando'></span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+<t-confirmation-dialog></t-confirmation-dialog>

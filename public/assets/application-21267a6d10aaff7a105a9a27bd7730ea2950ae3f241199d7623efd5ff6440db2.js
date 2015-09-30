@@ -12084,6 +12084,2504 @@ if (typeof jQuery === 'undefined') {
 
 })( jQuery );
 /**
+ * marked - a markdown parser
+ * Copyright (c) 2011-2014, Christopher Jeffrey. (MIT Licensed)
+ * https://github.com/chjj/marked
+ */
+
+
+;(function() {
+
+/**
+ * Block-Level Grammar
+ */
+
+var block = {
+  newline: /^\n+/,
+  code: /^( {4}[^\n]+\n*)+/,
+  fences: noop,
+  hr: /^( *[-*_]){3,} *(?:\n+|$)/,
+  heading: /^ *(#{1,6}) *([^\n]+?) *#* *(?:\n+|$)/,
+  nptable: noop,
+  lheading: /^([^\n]+)\n *(=|-){2,} *(?:\n+|$)/,
+  blockquote: /^( *>[^\n]+(\n(?!def)[^\n]+)*\n*)+/,
+  list: /^( *)(bull) [\s\S]+?(?:hr|def|\n{2,}(?! )(?!\1bull )\n*|\s*$)/,
+  html: /^ *(?:comment *(?:\n|\s*$)|closed *(?:\n{2,}|\s*$)|closing *(?:\n{2,}|\s*$))/,
+  def: /^ *\[([^\]]+)\]: *<?([^\s>]+)>?(?: +["(]([^\n]+)[")])? *(?:\n+|$)/,
+  table: noop,
+  paragraph: /^((?:[^\n]+\n?(?!hr|heading|lheading|blockquote|tag|def))+)\n*/,
+  text: /^[^\n]+/
+};
+
+block.bullet = /(?:[*+-]|\d+\.)/;
+block.item = /^( *)(bull) [^\n]*(?:\n(?!\1bull )[^\n]*)*/;
+block.item = replace(block.item, 'gm')
+  (/bull/g, block.bullet)
+  ();
+
+block.list = replace(block.list)
+  (/bull/g, block.bullet)
+  ('hr', '\\n+(?=\\1?(?:[-*_] *){3,}(?:\\n+|$))')
+  ('def', '\\n+(?=' + block.def.source + ')')
+  ();
+
+block.blockquote = replace(block.blockquote)
+  ('def', block.def)
+  ();
+
+block._tag = '(?!(?:'
+  + 'a|em|strong|small|s|cite|q|dfn|abbr|data|time|code'
+  + '|var|samp|kbd|sub|sup|i|b|u|mark|ruby|rt|rp|bdi|bdo'
+  + '|span|br|wbr|ins|del|img)\\b)\\w+(?!:/|[^\\w\\s@]*@)\\b';
+
+block.html = replace(block.html)
+  ('comment', /<!--[\s\S]*?-->/)
+  ('closed', /<(tag)[\s\S]+?<\/\1>/)
+  ('closing', /<tag(?:"[^"]*"|'[^']*'|[^'">])*?>/)
+  (/tag/g, block._tag)
+  ();
+
+block.paragraph = replace(block.paragraph)
+  ('hr', block.hr)
+  ('heading', block.heading)
+  ('lheading', block.lheading)
+  ('blockquote', block.blockquote)
+  ('tag', '<' + block._tag)
+  ('def', block.def)
+  ();
+
+/**
+ * Normal Block Grammar
+ */
+
+block.normal = merge({}, block);
+
+/**
+ * GFM Block Grammar
+ */
+
+block.gfm = merge({}, block.normal, {
+  fences: /^ *(`{3,}|~{3,})[ \.]*(\S+)? *\n([\s\S]*?)\s*\1 *(?:\n+|$)/,
+  paragraph: /^/,
+  heading: /^ *(#{1,6}) +([^\n]+?) *#* *(?:\n+|$)/
+});
+
+block.gfm.paragraph = replace(block.paragraph)
+  ('(?!', '(?!'
+    + block.gfm.fences.source.replace('\\1', '\\2') + '|'
+    + block.list.source.replace('\\1', '\\3') + '|')
+  ();
+
+/**
+ * GFM + Tables Block Grammar
+ */
+
+block.tables = merge({}, block.gfm, {
+  nptable: /^ *(\S.*\|.*)\n *([-:]+ *\|[-| :]*)\n((?:.*\|.*(?:\n|$))*)\n*/,
+  table: /^ *\|(.+)\n *\|( *[-:]+[-| :]*)\n((?: *\|.*(?:\n|$))*)\n*/
+});
+
+/**
+ * Block Lexer
+ */
+
+function Lexer(options) {
+  this.tokens = [];
+  this.tokens.links = {};
+  this.options = options || marked.defaults;
+  this.rules = block.normal;
+
+  if (this.options.gfm) {
+    if (this.options.tables) {
+      this.rules = block.tables;
+    } else {
+      this.rules = block.gfm;
+    }
+  }
+}
+
+/**
+ * Expose Block Rules
+ */
+
+Lexer.rules = block;
+
+/**
+ * Static Lex Method
+ */
+
+Lexer.lex = function(src, options) {
+  var lexer = new Lexer(options);
+  return lexer.lex(src);
+};
+
+/**
+ * Preprocessing
+ */
+
+Lexer.prototype.lex = function(src) {
+  src = src
+    .replace(/\r\n|\r/g, '\n')
+    .replace(/\t/g, '    ')
+    .replace(/\u00a0/g, ' ')
+    .replace(/\u2424/g, '\n');
+
+  return this.token(src, true);
+};
+
+/**
+ * Lexing
+ */
+
+Lexer.prototype.token = function(src, top, bq) {
+  var src = src.replace(/^ +$/gm, '')
+    , next
+    , loose
+    , cap
+    , bull
+    , b
+    , item
+    , space
+    , i
+    , l;
+
+  while (src) {
+    // newline
+    if (cap = this.rules.newline.exec(src)) {
+      src = src.substring(cap[0].length);
+      if (cap[0].length > 1) {
+        this.tokens.push({
+          type: 'space'
+        });
+      }
+    }
+
+    // code
+    if (cap = this.rules.code.exec(src)) {
+      src = src.substring(cap[0].length);
+      cap = cap[0].replace(/^ {4}/gm, '');
+      this.tokens.push({
+        type: 'code',
+        text: !this.options.pedantic
+          ? cap.replace(/\n+$/, '')
+          : cap
+      });
+      continue;
+    }
+
+    // fences (gfm)
+    if (cap = this.rules.fences.exec(src)) {
+      src = src.substring(cap[0].length);
+      this.tokens.push({
+        type: 'code',
+        lang: cap[2],
+        text: cap[3] || ''
+      });
+      continue;
+    }
+
+    // heading
+    if (cap = this.rules.heading.exec(src)) {
+      src = src.substring(cap[0].length);
+      this.tokens.push({
+        type: 'heading',
+        depth: cap[1].length,
+        text: cap[2]
+      });
+      continue;
+    }
+
+    // table no leading pipe (gfm)
+    if (top && (cap = this.rules.nptable.exec(src))) {
+      src = src.substring(cap[0].length);
+
+      item = {
+        type: 'table',
+        header: cap[1].replace(/^ *| *\| *$/g, '').split(/ *\| */),
+        align: cap[2].replace(/^ *|\| *$/g, '').split(/ *\| */),
+        cells: cap[3].replace(/\n$/, '').split('\n')
+      };
+
+      for (i = 0; i < item.align.length; i++) {
+        if (/^ *-+: *$/.test(item.align[i])) {
+          item.align[i] = 'right';
+        } else if (/^ *:-+: *$/.test(item.align[i])) {
+          item.align[i] = 'center';
+        } else if (/^ *:-+ *$/.test(item.align[i])) {
+          item.align[i] = 'left';
+        } else {
+          item.align[i] = null;
+        }
+      }
+
+      for (i = 0; i < item.cells.length; i++) {
+        item.cells[i] = item.cells[i].split(/ *\| */);
+      }
+
+      this.tokens.push(item);
+
+      continue;
+    }
+
+    // lheading
+    if (cap = this.rules.lheading.exec(src)) {
+      src = src.substring(cap[0].length);
+      this.tokens.push({
+        type: 'heading',
+        depth: cap[2] === '=' ? 1 : 2,
+        text: cap[1]
+      });
+      continue;
+    }
+
+    // hr
+    if (cap = this.rules.hr.exec(src)) {
+      src = src.substring(cap[0].length);
+      this.tokens.push({
+        type: 'hr'
+      });
+      continue;
+    }
+
+    // blockquote
+    if (cap = this.rules.blockquote.exec(src)) {
+      src = src.substring(cap[0].length);
+
+      this.tokens.push({
+        type: 'blockquote_start'
+      });
+
+      cap = cap[0].replace(/^ *> ?/gm, '');
+
+      // Pass `top` to keep the current
+      // "toplevel" state. This is exactly
+      // how markdown.pl works.
+      this.token(cap, top, true);
+
+      this.tokens.push({
+        type: 'blockquote_end'
+      });
+
+      continue;
+    }
+
+    // list
+    if (cap = this.rules.list.exec(src)) {
+      src = src.substring(cap[0].length);
+      bull = cap[2];
+
+      this.tokens.push({
+        type: 'list_start',
+        ordered: bull.length > 1
+      });
+
+      // Get each top-level item.
+      cap = cap[0].match(this.rules.item);
+
+      next = false;
+      l = cap.length;
+      i = 0;
+
+      for (; i < l; i++) {
+        item = cap[i];
+
+        // Remove the list item's bullet
+        // so it is seen as the next token.
+        space = item.length;
+        item = item.replace(/^ *([*+-]|\d+\.) +/, '');
+
+        // Outdent whatever the
+        // list item contains. Hacky.
+        if (~item.indexOf('\n ')) {
+          space -= item.length;
+          item = !this.options.pedantic
+            ? item.replace(new RegExp('^ {1,' + space + '}', 'gm'), '')
+            : item.replace(/^ {1,4}/gm, '');
+        }
+
+        // Determine whether the next list item belongs here.
+        // Backpedal if it does not belong in this list.
+        if (this.options.smartLists && i !== l - 1) {
+          b = block.bullet.exec(cap[i + 1])[0];
+          if (bull !== b && !(bull.length > 1 && b.length > 1)) {
+            src = cap.slice(i + 1).join('\n') + src;
+            i = l - 1;
+          }
+        }
+
+        // Determine whether item is loose or not.
+        // Use: /(^|\n)(?! )[^\n]+\n\n(?!\s*$)/
+        // for discount behavior.
+        loose = next || /\n\n(?!\s*$)/.test(item);
+        if (i !== l - 1) {
+          next = item.charAt(item.length - 1) === '\n';
+          if (!loose) loose = next;
+        }
+
+        this.tokens.push({
+          type: loose
+            ? 'loose_item_start'
+            : 'list_item_start'
+        });
+
+        // Recurse.
+        this.token(item, false, bq);
+
+        this.tokens.push({
+          type: 'list_item_end'
+        });
+      }
+
+      this.tokens.push({
+        type: 'list_end'
+      });
+
+      continue;
+    }
+
+    // html
+    if (cap = this.rules.html.exec(src)) {
+      src = src.substring(cap[0].length);
+      this.tokens.push({
+        type: this.options.sanitize
+          ? 'paragraph'
+          : 'html',
+        pre: !this.options.sanitizer
+          && (cap[1] === 'pre' || cap[1] === 'script' || cap[1] === 'style'),
+        text: cap[0]
+      });
+      continue;
+    }
+
+    // def
+    if ((!bq && top) && (cap = this.rules.def.exec(src))) {
+      src = src.substring(cap[0].length);
+      this.tokens.links[cap[1].toLowerCase()] = {
+        href: cap[2],
+        title: cap[3]
+      };
+      continue;
+    }
+
+    // table (gfm)
+    if (top && (cap = this.rules.table.exec(src))) {
+      src = src.substring(cap[0].length);
+
+      item = {
+        type: 'table',
+        header: cap[1].replace(/^ *| *\| *$/g, '').split(/ *\| */),
+        align: cap[2].replace(/^ *|\| *$/g, '').split(/ *\| */),
+        cells: cap[3].replace(/(?: *\| *)?\n$/, '').split('\n')
+      };
+
+      for (i = 0; i < item.align.length; i++) {
+        if (/^ *-+: *$/.test(item.align[i])) {
+          item.align[i] = 'right';
+        } else if (/^ *:-+: *$/.test(item.align[i])) {
+          item.align[i] = 'center';
+        } else if (/^ *:-+ *$/.test(item.align[i])) {
+          item.align[i] = 'left';
+        } else {
+          item.align[i] = null;
+        }
+      }
+
+      for (i = 0; i < item.cells.length; i++) {
+        item.cells[i] = item.cells[i]
+          .replace(/^ *\| *| *\| *$/g, '')
+          .split(/ *\| */);
+      }
+
+      this.tokens.push(item);
+
+      continue;
+    }
+
+    // top-level paragraph
+    if (top && (cap = this.rules.paragraph.exec(src))) {
+      src = src.substring(cap[0].length);
+      this.tokens.push({
+        type: 'paragraph',
+        text: cap[1].charAt(cap[1].length - 1) === '\n'
+          ? cap[1].slice(0, -1)
+          : cap[1]
+      });
+      continue;
+    }
+
+    // text
+    if (cap = this.rules.text.exec(src)) {
+      // Top-level should never reach here.
+      src = src.substring(cap[0].length);
+      this.tokens.push({
+        type: 'text',
+        text: cap[0]
+      });
+      continue;
+    }
+
+    if (src) {
+      throw new
+        Error('Infinite loop on byte: ' + src.charCodeAt(0));
+    }
+  }
+
+  return this.tokens;
+};
+
+/**
+ * Inline-Level Grammar
+ */
+
+var inline = {
+  escape: /^\\([\\`*{}\[\]()#+\-.!_>])/,
+  autolink: /^<([^ >]+(@|:\/)[^ >]+)>/,
+  url: noop,
+  tag: /^<!--[\s\S]*?-->|^<\/?\w+(?:"[^"]*"|'[^']*'|[^'">])*?>/,
+  link: /^!?\[(inside)\]\(href\)/,
+  reflink: /^!?\[(inside)\]\s*\[([^\]]*)\]/,
+  nolink: /^!?\[((?:\[[^\]]*\]|[^\[\]])*)\]/,
+  strong: /^__([\s\S]+?)__(?!_)|^\*\*([\s\S]+?)\*\*(?!\*)/,
+  em: /^\b_((?:[^_]|__)+?)_\b|^\*((?:\*\*|[\s\S])+?)\*(?!\*)/,
+  code: /^(`+)\s*([\s\S]*?[^`])\s*\1(?!`)/,
+  br: /^ {2,}\n(?!\s*$)/,
+  del: noop,
+  text: /^[\s\S]+?(?=[\\<!\[_*`]| {2,}\n|$)/
+};
+
+inline._inside = /(?:\[[^\]]*\]|[^\[\]]|\](?=[^\[]*\]))*/;
+inline._href = /\s*<?([\s\S]*?)>?(?:\s+['"]([\s\S]*?)['"])?\s*/;
+
+inline.link = replace(inline.link)
+  ('inside', inline._inside)
+  ('href', inline._href)
+  ();
+
+inline.reflink = replace(inline.reflink)
+  ('inside', inline._inside)
+  ();
+
+/**
+ * Normal Inline Grammar
+ */
+
+inline.normal = merge({}, inline);
+
+/**
+ * Pedantic Inline Grammar
+ */
+
+inline.pedantic = merge({}, inline.normal, {
+  strong: /^__(?=\S)([\s\S]*?\S)__(?!_)|^\*\*(?=\S)([\s\S]*?\S)\*\*(?!\*)/,
+  em: /^_(?=\S)([\s\S]*?\S)_(?!_)|^\*(?=\S)([\s\S]*?\S)\*(?!\*)/
+});
+
+/**
+ * GFM Inline Grammar
+ */
+
+inline.gfm = merge({}, inline.normal, {
+  escape: replace(inline.escape)('])', '~|])')(),
+  url: /^(https?:\/\/[^\s<]+[^<.,:;"')\]\s])/,
+  del: /^~~(?=\S)([\s\S]*?\S)~~/,
+  text: replace(inline.text)
+    (']|', '~]|')
+    ('|', '|https?://|')
+    ()
+});
+
+/**
+ * GFM + Line Breaks Inline Grammar
+ */
+
+inline.breaks = merge({}, inline.gfm, {
+  br: replace(inline.br)('{2,}', '*')(),
+  text: replace(inline.gfm.text)('{2,}', '*')()
+});
+
+/**
+ * Inline Lexer & Compiler
+ */
+
+function InlineLexer(links, options) {
+  this.options = options || marked.defaults;
+  this.links = links;
+  this.rules = inline.normal;
+  this.renderer = this.options.renderer || new Renderer;
+  this.renderer.options = this.options;
+
+  if (!this.links) {
+    throw new
+      Error('Tokens array requires a `links` property.');
+  }
+
+  if (this.options.gfm) {
+    if (this.options.breaks) {
+      this.rules = inline.breaks;
+    } else {
+      this.rules = inline.gfm;
+    }
+  } else if (this.options.pedantic) {
+    this.rules = inline.pedantic;
+  }
+}
+
+/**
+ * Expose Inline Rules
+ */
+
+InlineLexer.rules = inline;
+
+/**
+ * Static Lexing/Compiling Method
+ */
+
+InlineLexer.output = function(src, links, options) {
+  var inline = new InlineLexer(links, options);
+  return inline.output(src);
+};
+
+/**
+ * Lexing/Compiling
+ */
+
+InlineLexer.prototype.output = function(src) {
+  var out = ''
+    , link
+    , text
+    , href
+    , cap;
+
+  while (src) {
+    // escape
+    if (cap = this.rules.escape.exec(src)) {
+      src = src.substring(cap[0].length);
+      out += cap[1];
+      continue;
+    }
+
+    // autolink
+    if (cap = this.rules.autolink.exec(src)) {
+      src = src.substring(cap[0].length);
+      if (cap[2] === '@') {
+        text = cap[1].charAt(6) === ':'
+          ? this.mangle(cap[1].substring(7))
+          : this.mangle(cap[1]);
+        href = this.mangle('mailto:') + text;
+      } else {
+        text = escape(cap[1]);
+        href = text;
+      }
+      out += this.renderer.link(href, null, text);
+      continue;
+    }
+
+    // url (gfm)
+    if (!this.inLink && (cap = this.rules.url.exec(src))) {
+      src = src.substring(cap[0].length);
+      text = escape(cap[1]);
+      href = text;
+      out += this.renderer.link(href, null, text);
+      continue;
+    }
+
+    // tag
+    if (cap = this.rules.tag.exec(src)) {
+      if (!this.inLink && /^<a /i.test(cap[0])) {
+        this.inLink = true;
+      } else if (this.inLink && /^<\/a>/i.test(cap[0])) {
+        this.inLink = false;
+      }
+      src = src.substring(cap[0].length);
+      out += this.options.sanitize
+        ? this.options.sanitizer
+          ? this.options.sanitizer(cap[0])
+          : escape(cap[0])
+        : cap[0]
+      continue;
+    }
+
+    // link
+    if (cap = this.rules.link.exec(src)) {
+      src = src.substring(cap[0].length);
+      this.inLink = true;
+      out += this.outputLink(cap, {
+        href: cap[2],
+        title: cap[3]
+      });
+      this.inLink = false;
+      continue;
+    }
+
+    // reflink, nolink
+    if ((cap = this.rules.reflink.exec(src))
+        || (cap = this.rules.nolink.exec(src))) {
+      src = src.substring(cap[0].length);
+      link = (cap[2] || cap[1]).replace(/\s+/g, ' ');
+      link = this.links[link.toLowerCase()];
+      if (!link || !link.href) {
+        out += cap[0].charAt(0);
+        src = cap[0].substring(1) + src;
+        continue;
+      }
+      this.inLink = true;
+      out += this.outputLink(cap, link);
+      this.inLink = false;
+      continue;
+    }
+
+    // strong
+    if (cap = this.rules.strong.exec(src)) {
+      src = src.substring(cap[0].length);
+      out += this.renderer.strong(this.output(cap[2] || cap[1]));
+      continue;
+    }
+
+    // em
+    if (cap = this.rules.em.exec(src)) {
+      src = src.substring(cap[0].length);
+      out += this.renderer.em(this.output(cap[2] || cap[1]));
+      continue;
+    }
+
+    // code
+    if (cap = this.rules.code.exec(src)) {
+      src = src.substring(cap[0].length);
+      out += this.renderer.codespan(escape(cap[2], true));
+      continue;
+    }
+
+    // br
+    if (cap = this.rules.br.exec(src)) {
+      src = src.substring(cap[0].length);
+      out += this.renderer.br();
+      continue;
+    }
+
+    // del (gfm)
+    if (cap = this.rules.del.exec(src)) {
+      src = src.substring(cap[0].length);
+      out += this.renderer.del(this.output(cap[1]));
+      continue;
+    }
+
+    // text
+    if (cap = this.rules.text.exec(src)) {
+      src = src.substring(cap[0].length);
+      out += this.renderer.text(escape(this.smartypants(cap[0])));
+      continue;
+    }
+
+    if (src) {
+      throw new
+        Error('Infinite loop on byte: ' + src.charCodeAt(0));
+    }
+  }
+
+  return out;
+};
+
+/**
+ * Compile Link
+ */
+
+InlineLexer.prototype.outputLink = function(cap, link) {
+  var href = escape(link.href)
+    , title = link.title ? escape(link.title) : null;
+
+  return cap[0].charAt(0) !== '!'
+    ? this.renderer.link(href, title, this.output(cap[1]))
+    : this.renderer.image(href, title, escape(cap[1]));
+};
+
+/**
+ * Smartypants Transformations
+ */
+
+InlineLexer.prototype.smartypants = function(text) {
+  if (!this.options.smartypants) return text;
+  return text
+    // em-dashes
+    .replace(/---/g, '\u2014')
+    // en-dashes
+    .replace(/--/g, '\u2013')
+    // opening singles
+    .replace(/(^|[-\u2014/(\[{"\s])'/g, '$1\u2018')
+    // closing singles & apostrophes
+    .replace(/'/g, '\u2019')
+    // opening doubles
+    .replace(/(^|[-\u2014/(\[{\u2018\s])"/g, '$1\u201c')
+    // closing doubles
+    .replace(/"/g, '\u201d')
+    // ellipses
+    .replace(/\.{3}/g, '\u2026');
+};
+
+/**
+ * Mangle Links
+ */
+
+InlineLexer.prototype.mangle = function(text) {
+  if (!this.options.mangle) return text;
+  var out = ''
+    , l = text.length
+    , i = 0
+    , ch;
+
+  for (; i < l; i++) {
+    ch = text.charCodeAt(i);
+    if (Math.random() > 0.5) {
+      ch = 'x' + ch.toString(16);
+    }
+    out += '&#' + ch + ';';
+  }
+
+  return out;
+};
+
+/**
+ * Renderer
+ */
+
+function Renderer(options) {
+  this.options = options || {};
+}
+
+Renderer.prototype.code = function(code, lang, escaped) {
+  if (this.options.highlight) {
+    var out = this.options.highlight(code, lang);
+    if (out != null && out !== code) {
+      escaped = true;
+      code = out;
+    }
+  }
+
+  if (!lang) {
+    return '<pre><code>'
+      + (escaped ? code : escape(code, true))
+      + '\n</code></pre>';
+  }
+
+  return '<pre><code class="'
+    + this.options.langPrefix
+    + escape(lang, true)
+    + '">'
+    + (escaped ? code : escape(code, true))
+    + '\n</code></pre>\n';
+};
+
+Renderer.prototype.blockquote = function(quote) {
+  return '<blockquote>\n' + quote + '</blockquote>\n';
+};
+
+Renderer.prototype.html = function(html) {
+  return html;
+};
+
+Renderer.prototype.heading = function(text, level, raw) {
+  return '<h'
+    + level
+    + ' id="'
+    + this.options.headerPrefix
+    + raw.toLowerCase().replace(/[^\w]+/g, '-')
+    + '">'
+    + text
+    + '</h'
+    + level
+    + '>\n';
+};
+
+Renderer.prototype.hr = function() {
+  return this.options.xhtml ? '<hr/>\n' : '<hr>\n';
+};
+
+Renderer.prototype.list = function(body, ordered) {
+  var type = ordered ? 'ol' : 'ul';
+  return '<' + type + '>\n' + body + '</' + type + '>\n';
+};
+
+Renderer.prototype.listitem = function(text) {
+  return '<li>' + text + '</li>\n';
+};
+
+Renderer.prototype.paragraph = function(text) {
+  return '<p>' + text + '</p>\n';
+};
+
+Renderer.prototype.table = function(header, body) {
+  return '<table>\n'
+    + '<thead>\n'
+    + header
+    + '</thead>\n'
+    + '<tbody>\n'
+    + body
+    + '</tbody>\n'
+    + '</table>\n';
+};
+
+Renderer.prototype.tablerow = function(content) {
+  return '<tr>\n' + content + '</tr>\n';
+};
+
+Renderer.prototype.tablecell = function(content, flags) {
+  var type = flags.header ? 'th' : 'td';
+  var tag = flags.align
+    ? '<' + type + ' style="text-align:' + flags.align + '">'
+    : '<' + type + '>';
+  return tag + content + '</' + type + '>\n';
+};
+
+// span level renderer
+Renderer.prototype.strong = function(text) {
+  return '<strong>' + text + '</strong>';
+};
+
+Renderer.prototype.em = function(text) {
+  return '<em>' + text + '</em>';
+};
+
+Renderer.prototype.codespan = function(text) {
+  return '<code>' + text + '</code>';
+};
+
+Renderer.prototype.br = function() {
+  return this.options.xhtml ? '<br/>' : '<br>';
+};
+
+Renderer.prototype.del = function(text) {
+  return '<del>' + text + '</del>';
+};
+
+Renderer.prototype.link = function(href, title, text) {
+  if (this.options.sanitize) {
+    try {
+      var prot = decodeURIComponent(unescape(href))
+        .replace(/[^\w:]/g, '')
+        .toLowerCase();
+    } catch (e) {
+      return '';
+    }
+    if (prot.indexOf('javascript:') === 0 || prot.indexOf('vbscript:') === 0) {
+      return '';
+    }
+  }
+  var out = '<a href="' + href + '"';
+  if (title) {
+    out += ' title="' + title + '"';
+  }
+  out += '>' + text + '</a>';
+  return out;
+};
+
+Renderer.prototype.image = function(href, title, text) {
+  var out = '<img src="' + href + '" alt="' + text + '"';
+  if (title) {
+    out += ' title="' + title + '"';
+  }
+  out += this.options.xhtml ? '/>' : '>';
+  return out;
+};
+
+Renderer.prototype.text = function(text) {
+  return text;
+};
+
+/**
+ * Parsing & Compiling
+ */
+
+function Parser(options) {
+  this.tokens = [];
+  this.token = null;
+  this.options = options || marked.defaults;
+  this.options.renderer = this.options.renderer || new Renderer;
+  this.renderer = this.options.renderer;
+  this.renderer.options = this.options;
+}
+
+/**
+ * Static Parse Method
+ */
+
+Parser.parse = function(src, options, renderer) {
+  var parser = new Parser(options, renderer);
+  return parser.parse(src);
+};
+
+/**
+ * Parse Loop
+ */
+
+Parser.prototype.parse = function(src) {
+  this.inline = new InlineLexer(src.links, this.options, this.renderer);
+  this.tokens = src.reverse();
+
+  var out = '';
+  while (this.next()) {
+    out += this.tok();
+  }
+
+  return out;
+};
+
+/**
+ * Next Token
+ */
+
+Parser.prototype.next = function() {
+  return this.token = this.tokens.pop();
+};
+
+/**
+ * Preview Next Token
+ */
+
+Parser.prototype.peek = function() {
+  return this.tokens[this.tokens.length - 1] || 0;
+};
+
+/**
+ * Parse Text Tokens
+ */
+
+Parser.prototype.parseText = function() {
+  var body = this.token.text;
+
+  while (this.peek().type === 'text') {
+    body += '\n' + this.next().text;
+  }
+
+  return this.inline.output(body);
+};
+
+/**
+ * Parse Current Token
+ */
+
+Parser.prototype.tok = function() {
+  switch (this.token.type) {
+    case 'space': {
+      return '';
+    }
+    case 'hr': {
+      return this.renderer.hr();
+    }
+    case 'heading': {
+      return this.renderer.heading(
+        this.inline.output(this.token.text),
+        this.token.depth,
+        this.token.text);
+    }
+    case 'code': {
+      return this.renderer.code(this.token.text,
+        this.token.lang,
+        this.token.escaped);
+    }
+    case 'table': {
+      var header = ''
+        , body = ''
+        , i
+        , row
+        , cell
+        , flags
+        , j;
+
+      // header
+      cell = '';
+      for (i = 0; i < this.token.header.length; i++) {
+        flags = { header: true, align: this.token.align[i] };
+        cell += this.renderer.tablecell(
+          this.inline.output(this.token.header[i]),
+          { header: true, align: this.token.align[i] }
+        );
+      }
+      header += this.renderer.tablerow(cell);
+
+      for (i = 0; i < this.token.cells.length; i++) {
+        row = this.token.cells[i];
+
+        cell = '';
+        for (j = 0; j < row.length; j++) {
+          cell += this.renderer.tablecell(
+            this.inline.output(row[j]),
+            { header: false, align: this.token.align[j] }
+          );
+        }
+
+        body += this.renderer.tablerow(cell);
+      }
+      return this.renderer.table(header, body);
+    }
+    case 'blockquote_start': {
+      var body = '';
+
+      while (this.next().type !== 'blockquote_end') {
+        body += this.tok();
+      }
+
+      return this.renderer.blockquote(body);
+    }
+    case 'list_start': {
+      var body = ''
+        , ordered = this.token.ordered;
+
+      while (this.next().type !== 'list_end') {
+        body += this.tok();
+      }
+
+      return this.renderer.list(body, ordered);
+    }
+    case 'list_item_start': {
+      var body = '';
+
+      while (this.next().type !== 'list_item_end') {
+        body += this.token.type === 'text'
+          ? this.parseText()
+          : this.tok();
+      }
+
+      return this.renderer.listitem(body);
+    }
+    case 'loose_item_start': {
+      var body = '';
+
+      while (this.next().type !== 'list_item_end') {
+        body += this.tok();
+      }
+
+      return this.renderer.listitem(body);
+    }
+    case 'html': {
+      var html = !this.token.pre && !this.options.pedantic
+        ? this.inline.output(this.token.text)
+        : this.token.text;
+      return this.renderer.html(html);
+    }
+    case 'paragraph': {
+      return this.renderer.paragraph(this.inline.output(this.token.text));
+    }
+    case 'text': {
+      return this.renderer.paragraph(this.parseText());
+    }
+  }
+};
+
+/**
+ * Helpers
+ */
+
+function escape(html, encode) {
+  return html
+    .replace(!encode ? /&(?!#?\w+;)/g : /&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function unescape(html) {
+  return html.replace(/&([#\w]+);/g, function(_, n) {
+    n = n.toLowerCase();
+    if (n === 'colon') return ':';
+    if (n.charAt(0) === '#') {
+      return n.charAt(1) === 'x'
+        ? String.fromCharCode(parseInt(n.substring(2), 16))
+        : String.fromCharCode(+n.substring(1));
+    }
+    return '';
+  });
+}
+
+function replace(regex, opt) {
+  regex = regex.source;
+  opt = opt || '';
+  return function self(name, val) {
+    if (!name) return new RegExp(regex, opt);
+    val = val.source || val;
+    val = val.replace(/(^|[^\[])\^/g, '$1');
+    regex = regex.replace(name, val);
+    return self;
+  };
+}
+
+function noop() {}
+noop.exec = noop;
+
+function merge(obj) {
+  var i = 1
+    , target
+    , key;
+
+  for (; i < arguments.length; i++) {
+    target = arguments[i];
+    for (key in target) {
+      if (Object.prototype.hasOwnProperty.call(target, key)) {
+        obj[key] = target[key];
+      }
+    }
+  }
+
+  return obj;
+}
+
+
+/**
+ * Marked
+ */
+
+function marked(src, opt, callback) {
+  if (callback || typeof opt === 'function') {
+    if (!callback) {
+      callback = opt;
+      opt = null;
+    }
+
+    opt = merge({}, marked.defaults, opt || {});
+
+    var highlight = opt.highlight
+      , tokens
+      , pending
+      , i = 0;
+
+    try {
+      tokens = Lexer.lex(src, opt)
+    } catch (e) {
+      return callback(e);
+    }
+
+    pending = tokens.length;
+
+    var done = function(err) {
+      if (err) {
+        opt.highlight = highlight;
+        return callback(err);
+      }
+
+      var out;
+
+      try {
+        out = Parser.parse(tokens, opt);
+      } catch (e) {
+        err = e;
+      }
+
+      opt.highlight = highlight;
+
+      return err
+        ? callback(err)
+        : callback(null, out);
+    };
+
+    if (!highlight || highlight.length < 3) {
+      return done();
+    }
+
+    delete opt.highlight;
+
+    if (!pending) return done();
+
+    for (; i < tokens.length; i++) {
+      (function(token) {
+        if (token.type !== 'code') {
+          return --pending || done();
+        }
+        return highlight(token.text, token.lang, function(err, code) {
+          if (err) return done(err);
+          if (code == null || code === token.text) {
+            return --pending || done();
+          }
+          token.text = code;
+          token.escaped = true;
+          --pending || done();
+        });
+      })(tokens[i]);
+    }
+
+    return;
+  }
+  try {
+    if (opt) opt = merge({}, marked.defaults, opt);
+    return Parser.parse(Lexer.lex(src, opt), opt);
+  } catch (e) {
+    e.message += '\nPlease report this to https://github.com/chjj/marked.';
+    if ((opt || marked.defaults).silent) {
+      return '<p>An error occured:</p><pre>'
+        + escape(e.message + '', true)
+        + '</pre>';
+    }
+    throw e;
+  }
+}
+
+/**
+ * Options
+ */
+
+marked.options =
+marked.setOptions = function(opt) {
+  merge(marked.defaults, opt);
+  return marked;
+};
+
+marked.defaults = {
+  gfm: true,
+  tables: true,
+  breaks: false,
+  pedantic: false,
+  sanitize: false,
+  sanitizer: null,
+  mangle: true,
+  smartLists: false,
+  silent: false,
+  highlight: null,
+  langPrefix: 'lang-',
+  smartypants: false,
+  headerPrefix: '',
+  renderer: new Renderer,
+  xhtml: false
+};
+
+/**
+ * Expose
+ */
+
+marked.Parser = Parser;
+marked.parser = Parser.parse;
+
+marked.Renderer = Renderer;
+
+marked.Lexer = Lexer;
+marked.lexer = Lexer.lex;
+
+marked.InlineLexer = InlineLexer;
+marked.inlineLexer = InlineLexer.output;
+
+marked.parse = marked;
+
+if (typeof module !== 'undefined' && typeof exports === 'object') {
+  module.exports = marked;
+} else if (typeof define === 'function' && define.amd) {
+  define(function() { return marked; });
+} else {
+  this.marked = marked;
+}
+
+}).call(function() {
+  return this || (typeof window !== 'undefined' ? window : global);
+}());
+/*!
+Chosen, a Select Box Enhancer for jQuery and Prototype
+by Patrick Filler for Harvest, http://getharvest.com
+
+Version 1.1.0
+Full source at https://github.com/harvesthq/chosen
+Copyright (c) 2011 Harvest http://getharvest.com
+
+MIT License, https://github.com/harvesthq/chosen/blob/master/LICENSE.md
+This file is generated by `grunt build`, do not edit it by hand.
+*/
+
+
+(function() {
+  var $, AbstractChosen, Chosen, SelectParser, _ref,
+    __hasProp = {}.hasOwnProperty,
+    __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
+
+  SelectParser = (function() {
+    function SelectParser() {
+      this.options_index = 0;
+      this.parsed = [];
+    }
+
+    SelectParser.prototype.add_node = function(child) {
+      if (child.nodeName.toUpperCase() === "OPTGROUP") {
+        return this.add_group(child);
+      } else {
+        return this.add_option(child);
+      }
+    };
+
+    SelectParser.prototype.add_group = function(group) {
+      var group_position, option, _i, _len, _ref, _results;
+      group_position = this.parsed.length;
+      this.parsed.push({
+        array_index: group_position,
+        group: true,
+        label: this.escapeExpression(group.label),
+        children: 0,
+        disabled: group.disabled
+      });
+      _ref = group.childNodes;
+      _results = [];
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        option = _ref[_i];
+        _results.push(this.add_option(option, group_position, group.disabled));
+      }
+      return _results;
+    };
+
+    SelectParser.prototype.add_option = function(option, group_position, group_disabled) {
+      if (option.nodeName.toUpperCase() === "OPTION") {
+        if (option.text !== "") {
+          if (group_position != null) {
+            this.parsed[group_position].children += 1;
+          }
+          this.parsed.push({
+            array_index: this.parsed.length,
+            options_index: this.options_index,
+            value: option.value,
+            text: option.text,
+            html: option.innerHTML,
+            selected: option.selected,
+            disabled: group_disabled === true ? group_disabled : option.disabled,
+            group_array_index: group_position,
+            classes: option.className,
+            style: option.style.cssText
+          });
+        } else {
+          this.parsed.push({
+            array_index: this.parsed.length,
+            options_index: this.options_index,
+            empty: true
+          });
+        }
+        return this.options_index += 1;
+      }
+    };
+
+    SelectParser.prototype.escapeExpression = function(text) {
+      var map, unsafe_chars;
+      if ((text == null) || text === false) {
+        return "";
+      }
+      if (!/[\&\<\>\"\'\`]/.test(text)) {
+        return text;
+      }
+      map = {
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#x27;",
+        "`": "&#x60;"
+      };
+      unsafe_chars = /&(?!\w+;)|[\<\>\"\'\`]/g;
+      return text.replace(unsafe_chars, function(chr) {
+        return map[chr] || "&amp;";
+      });
+    };
+
+    return SelectParser;
+
+  })();
+
+  SelectParser.select_to_array = function(select) {
+    var child, parser, _i, _len, _ref;
+    parser = new SelectParser();
+    _ref = select.childNodes;
+    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+      child = _ref[_i];
+      parser.add_node(child);
+    }
+    return parser.parsed;
+  };
+
+  AbstractChosen = (function() {
+    function AbstractChosen(form_field, options) {
+      this.form_field = form_field;
+      this.options = options != null ? options : {};
+      if (!AbstractChosen.browser_is_supported()) {
+        return;
+      }
+      this.is_multiple = this.form_field.multiple;
+      this.set_default_text();
+      this.set_default_values();
+      this.setup();
+      this.set_up_html();
+      this.register_observers();
+    }
+
+    AbstractChosen.prototype.set_default_values = function() {
+      var _this = this;
+      this.click_test_action = function(evt) {
+        return _this.test_active_click(evt);
+      };
+      this.activate_action = function(evt) {
+        return _this.activate_field(evt);
+      };
+      this.active_field = false;
+      this.mouse_on_container = false;
+      this.results_showing = false;
+      this.result_highlighted = null;
+      this.allow_single_deselect = (this.options.allow_single_deselect != null) && (this.form_field.options[0] != null) && this.form_field.options[0].text === "" ? this.options.allow_single_deselect : false;
+      this.disable_search_threshold = this.options.disable_search_threshold || 0;
+      this.disable_search = this.options.disable_search || false;
+      this.enable_split_word_search = this.options.enable_split_word_search != null ? this.options.enable_split_word_search : true;
+      this.group_search = this.options.group_search != null ? this.options.group_search : true;
+      this.search_contains = this.options.search_contains || false;
+      this.single_backstroke_delete = this.options.single_backstroke_delete != null ? this.options.single_backstroke_delete : true;
+      this.max_selected_options = this.options.max_selected_options || Infinity;
+      this.inherit_select_classes = this.options.inherit_select_classes || false;
+      this.display_selected_options = this.options.display_selected_options != null ? this.options.display_selected_options : true;
+      return this.display_disabled_options = this.options.display_disabled_options != null ? this.options.display_disabled_options : true;
+    };
+
+    AbstractChosen.prototype.set_default_text = function() {
+      if (this.form_field.getAttribute("data-placeholder")) {
+        this.default_text = this.form_field.getAttribute("data-placeholder");
+      } else if (this.is_multiple) {
+        this.default_text = this.options.placeholder_text_multiple || this.options.placeholder_text || AbstractChosen.default_multiple_text;
+      } else {
+        this.default_text = this.options.placeholder_text_single || this.options.placeholder_text || AbstractChosen.default_single_text;
+      }
+      return this.results_none_found = this.form_field.getAttribute("data-no_results_text") || this.options.no_results_text || AbstractChosen.default_no_result_text;
+    };
+
+    AbstractChosen.prototype.mouse_enter = function() {
+      return this.mouse_on_container = true;
+    };
+
+    AbstractChosen.prototype.mouse_leave = function() {
+      return this.mouse_on_container = false;
+    };
+
+    AbstractChosen.prototype.input_focus = function(evt) {
+      var _this = this;
+      if (this.is_multiple) {
+        if (!this.active_field) {
+          return setTimeout((function() {
+            return _this.container_mousedown();
+          }), 50);
+        }
+      } else {
+        if (!this.active_field) {
+          return this.activate_field();
+        }
+      }
+    };
+
+    AbstractChosen.prototype.input_blur = function(evt) {
+      var _this = this;
+      if (!this.mouse_on_container) {
+        this.active_field = false;
+        return setTimeout((function() {
+          return _this.blur_test();
+        }), 100);
+      }
+    };
+
+    AbstractChosen.prototype.results_option_build = function(options) {
+      var content, data, _i, _len, _ref;
+      content = '';
+      _ref = this.results_data;
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        data = _ref[_i];
+        if (data.group) {
+          content += this.result_add_group(data);
+        } else {
+          content += this.result_add_option(data);
+        }
+        if (options != null ? options.first : void 0) {
+          if (data.selected && this.is_multiple) {
+            this.choice_build(data);
+          } else if (data.selected && !this.is_multiple) {
+            this.single_set_selected_text(data.text);
+          }
+        }
+      }
+      return content;
+    };
+
+    AbstractChosen.prototype.result_add_option = function(option) {
+      var classes, option_el;
+      if (!option.search_match) {
+        return '';
+      }
+      if (!this.include_option_in_results(option)) {
+        return '';
+      }
+      classes = [];
+      if (!option.disabled && !(option.selected && this.is_multiple)) {
+        classes.push("active-result");
+      }
+      if (option.disabled && !(option.selected && this.is_multiple)) {
+        classes.push("disabled-result");
+      }
+      if (option.selected) {
+        classes.push("result-selected");
+      }
+      if (option.group_array_index != null) {
+        classes.push("group-option");
+      }
+      if (option.classes !== "") {
+        classes.push(option.classes);
+      }
+      option_el = document.createElement("li");
+      option_el.className = classes.join(" ");
+      option_el.style.cssText = option.style;
+      option_el.setAttribute("data-option-array-index", option.array_index);
+      option_el.innerHTML = option.search_text;
+      return this.outerHTML(option_el);
+    };
+
+    AbstractChosen.prototype.result_add_group = function(group) {
+      var group_el;
+      if (!(group.search_match || group.group_match)) {
+        return '';
+      }
+      if (!(group.active_options > 0)) {
+        return '';
+      }
+      group_el = document.createElement("li");
+      group_el.className = "group-result";
+      group_el.innerHTML = group.search_text;
+      return this.outerHTML(group_el);
+    };
+
+    AbstractChosen.prototype.results_update_field = function() {
+      this.set_default_text();
+      if (!this.is_multiple) {
+        this.results_reset_cleanup();
+      }
+      this.result_clear_highlight();
+      this.results_build();
+      if (this.results_showing) {
+        return this.winnow_results();
+      }
+    };
+
+    AbstractChosen.prototype.reset_single_select_options = function() {
+      var result, _i, _len, _ref, _results;
+      _ref = this.results_data;
+      _results = [];
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        result = _ref[_i];
+        if (result.selected) {
+          _results.push(result.selected = false);
+        } else {
+          _results.push(void 0);
+        }
+      }
+      return _results;
+    };
+
+    AbstractChosen.prototype.results_toggle = function() {
+      if (this.results_showing) {
+        return this.results_hide();
+      } else {
+        return this.results_show();
+      }
+    };
+
+    AbstractChosen.prototype.results_search = function(evt) {
+      if (this.results_showing) {
+        return this.winnow_results();
+      } else {
+        return this.results_show();
+      }
+    };
+
+    AbstractChosen.prototype.winnow_results = function() {
+      var escapedSearchText, option, regex, regexAnchor, results, results_group, searchText, startpos, text, zregex, _i, _len, _ref;
+      this.no_results_clear();
+      results = 0;
+      searchText = this.get_search_text();
+      escapedSearchText = searchText.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+      regexAnchor = this.search_contains ? "" : "^";
+      regex = new RegExp(regexAnchor + escapedSearchText, 'i');
+      zregex = new RegExp(escapedSearchText, 'i');
+      _ref = this.results_data;
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        option = _ref[_i];
+        option.search_match = false;
+        results_group = null;
+        if (this.include_option_in_results(option)) {
+          if (option.group) {
+            option.group_match = false;
+            option.active_options = 0;
+          }
+          if ((option.group_array_index != null) && this.results_data[option.group_array_index]) {
+            results_group = this.results_data[option.group_array_index];
+            if (results_group.active_options === 0 && results_group.search_match) {
+              results += 1;
+            }
+            results_group.active_options += 1;
+          }
+          if (!(option.group && !this.group_search)) {
+            option.search_text = option.group ? option.label : option.html;
+            option.search_match = this.search_string_match(option.search_text, regex);
+            if (option.search_match && !option.group) {
+              results += 1;
+            }
+            if (option.search_match) {
+              if (searchText.length) {
+                startpos = option.search_text.search(zregex);
+                text = option.search_text.substr(0, startpos + searchText.length) + '</em>' + option.search_text.substr(startpos + searchText.length);
+                option.search_text = text.substr(0, startpos) + '<em>' + text.substr(startpos);
+              }
+              if (results_group != null) {
+                results_group.group_match = true;
+              }
+            } else if ((option.group_array_index != null) && this.results_data[option.group_array_index].search_match) {
+              option.search_match = true;
+            }
+          }
+        }
+      }
+      this.result_clear_highlight();
+      if (results < 1 && searchText.length) {
+        this.update_results_content("");
+        return this.no_results(searchText);
+      } else {
+        this.update_results_content(this.results_option_build());
+        return this.winnow_results_set_highlight();
+      }
+    };
+
+    AbstractChosen.prototype.search_string_match = function(search_string, regex) {
+      var part, parts, _i, _len;
+      if (regex.test(search_string)) {
+        return true;
+      } else if (this.enable_split_word_search && (search_string.indexOf(" ") >= 0 || search_string.indexOf("[") === 0)) {
+        parts = search_string.replace(/\[|\]/g, "").split(" ");
+        if (parts.length) {
+          for (_i = 0, _len = parts.length; _i < _len; _i++) {
+            part = parts[_i];
+            if (regex.test(part)) {
+              return true;
+            }
+          }
+        }
+      }
+    };
+
+    AbstractChosen.prototype.choices_count = function() {
+      var option, _i, _len, _ref;
+      if (this.selected_option_count != null) {
+        return this.selected_option_count;
+      }
+      this.selected_option_count = 0;
+      _ref = this.form_field.options;
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        option = _ref[_i];
+        if (option.selected) {
+          this.selected_option_count += 1;
+        }
+      }
+      return this.selected_option_count;
+    };
+
+    AbstractChosen.prototype.choices_click = function(evt) {
+      evt.preventDefault();
+      if (!(this.results_showing || this.is_disabled)) {
+        return this.results_show();
+      }
+    };
+
+    AbstractChosen.prototype.keyup_checker = function(evt) {
+      var stroke, _ref;
+      stroke = (_ref = evt.which) != null ? _ref : evt.keyCode;
+      this.search_field_scale();
+      switch (stroke) {
+        case 8:
+          if (this.is_multiple && this.backstroke_length < 1 && this.choices_count() > 0) {
+            return this.keydown_backstroke();
+          } else if (!this.pending_backstroke) {
+            this.result_clear_highlight();
+            return this.results_search();
+          }
+          break;
+        case 13:
+          evt.preventDefault();
+          if (this.results_showing) {
+            return this.result_select(evt);
+          }
+          break;
+        case 27:
+          if (this.results_showing) {
+            this.results_hide();
+          }
+          return true;
+        case 9:
+        case 38:
+        case 40:
+        case 16:
+        case 91:
+        case 17:
+          break;
+        default:
+          return this.results_search();
+      }
+    };
+
+    AbstractChosen.prototype.clipboard_event_checker = function(evt) {
+      var _this = this;
+      return setTimeout((function() {
+        return _this.results_search();
+      }), 50);
+    };
+
+    AbstractChosen.prototype.container_width = function() {
+      if (this.options.width != null) {
+        return this.options.width;
+      } else {
+        return "" + this.form_field.offsetWidth + "px";
+      }
+    };
+
+    AbstractChosen.prototype.include_option_in_results = function(option) {
+      if (this.is_multiple && (!this.display_selected_options && option.selected)) {
+        return false;
+      }
+      if (!this.display_disabled_options && option.disabled) {
+        return false;
+      }
+      if (option.empty) {
+        return false;
+      }
+      return true;
+    };
+
+    AbstractChosen.prototype.search_results_touchstart = function(evt) {
+      this.touch_started = true;
+      return this.search_results_mouseover(evt);
+    };
+
+    AbstractChosen.prototype.search_results_touchmove = function(evt) {
+      this.touch_started = false;
+      return this.search_results_mouseout(evt);
+    };
+
+    AbstractChosen.prototype.search_results_touchend = function(evt) {
+      if (this.touch_started) {
+        return this.search_results_mouseup(evt);
+      }
+    };
+
+    AbstractChosen.prototype.outerHTML = function(element) {
+      var tmp;
+      if (element.outerHTML) {
+        return element.outerHTML;
+      }
+      tmp = document.createElement("div");
+      tmp.appendChild(element);
+      return tmp.innerHTML;
+    };
+
+    AbstractChosen.browser_is_supported = function() {
+      if (window.navigator.appName === "Microsoft Internet Explorer") {
+        return document.documentMode >= 8;
+      }
+      if (/iP(od|hone)/i.test(window.navigator.userAgent)) {
+        return false;
+      }
+      if (/Android/i.test(window.navigator.userAgent)) {
+        if (/Mobile/i.test(window.navigator.userAgent)) {
+          return false;
+        }
+      }
+      return true;
+    };
+
+    AbstractChosen.default_multiple_text = "Select Some Options";
+
+    AbstractChosen.default_single_text = "Select an Option";
+
+    AbstractChosen.default_no_result_text = "No results match";
+
+    return AbstractChosen;
+
+  })();
+
+  $ = jQuery;
+
+  $.fn.extend({
+    chosen: function(options) {
+      if (!AbstractChosen.browser_is_supported()) {
+        return this;
+      }
+      return this.each(function(input_field) {
+        var $this, chosen;
+        $this = $(this);
+        chosen = $this.data('chosen');
+        if (options === 'destroy' && chosen) {
+          chosen.destroy();
+        } else if (!chosen) {
+          $this.data('chosen', new Chosen(this, options));
+        }
+      });
+    }
+  });
+
+  Chosen = (function(_super) {
+    __extends(Chosen, _super);
+
+    function Chosen() {
+      _ref = Chosen.__super__.constructor.apply(this, arguments);
+      return _ref;
+    }
+
+    Chosen.prototype.setup = function() {
+      this.form_field_jq = $(this.form_field);
+      this.current_selectedIndex = this.form_field.selectedIndex;
+      return this.is_rtl = this.form_field_jq.hasClass("chosen-rtl");
+    };
+
+    Chosen.prototype.set_up_html = function() {
+      var container_classes, container_props;
+      container_classes = ["chosen-container"];
+      container_classes.push("chosen-container-" + (this.is_multiple ? "multi" : "single"));
+      if (this.inherit_select_classes && this.form_field.className) {
+        container_classes.push(this.form_field.className);
+      }
+      if (this.is_rtl) {
+        container_classes.push("chosen-rtl");
+      }
+      container_props = {
+        'class': container_classes.join(' '),
+        'style': "width: " + (this.container_width()) + ";",
+        'title': this.form_field.title
+      };
+      if (this.form_field.id.length) {
+        container_props.id = this.form_field.id.replace(/[^\w]/g, '_') + "_chosen";
+      }
+      this.container = $("<div />", container_props);
+      if (this.is_multiple) {
+        this.container.html('<ul class="chosen-choices"><li class="search-field"><input type="text" value="' + this.default_text + '" class="default" autocomplete="off" style="width:25px;" /></li></ul><div class="chosen-drop"><ul class="chosen-results"></ul></div>');
+      } else {
+        this.container.html('<a class="chosen-single chosen-default" tabindex="-1"><span>' + this.default_text + '</span><div><b></b></div></a><div class="chosen-drop"><div class="chosen-search"><input type="text" autocomplete="off" /></div><ul class="chosen-results"></ul></div>');
+      }
+      this.form_field_jq.hide().after(this.container);
+      this.dropdown = this.container.find('div.chosen-drop').first();
+      this.search_field = this.container.find('input').first();
+      this.search_results = this.container.find('ul.chosen-results').first();
+      this.search_field_scale();
+      this.search_no_results = this.container.find('li.no-results').first();
+      if (this.is_multiple) {
+        this.search_choices = this.container.find('ul.chosen-choices').first();
+        this.search_container = this.container.find('li.search-field').first();
+      } else {
+        this.search_container = this.container.find('div.chosen-search').first();
+        this.selected_item = this.container.find('.chosen-single').first();
+      }
+      this.results_build();
+      this.set_tab_index();
+      this.set_label_behavior();
+      return this.form_field_jq.trigger("chosen:ready", {
+        chosen: this
+      });
+    };
+
+    Chosen.prototype.register_observers = function() {
+      var _this = this;
+      this.container.bind('mousedown.chosen', function(evt) {
+        _this.container_mousedown(evt);
+      });
+      this.container.bind('mouseup.chosen', function(evt) {
+        _this.container_mouseup(evt);
+      });
+      this.container.bind('mouseenter.chosen', function(evt) {
+        _this.mouse_enter(evt);
+      });
+      this.container.bind('mouseleave.chosen', function(evt) {
+        _this.mouse_leave(evt);
+      });
+      this.search_results.bind('mouseup.chosen', function(evt) {
+        _this.search_results_mouseup(evt);
+      });
+      this.search_results.bind('mouseover.chosen', function(evt) {
+        _this.search_results_mouseover(evt);
+      });
+      this.search_results.bind('mouseout.chosen', function(evt) {
+        _this.search_results_mouseout(evt);
+      });
+      this.search_results.bind('mousewheel.chosen DOMMouseScroll.chosen', function(evt) {
+        _this.search_results_mousewheel(evt);
+      });
+      this.search_results.bind('touchstart.chosen', function(evt) {
+        _this.search_results_touchstart(evt);
+      });
+      this.search_results.bind('touchmove.chosen', function(evt) {
+        _this.search_results_touchmove(evt);
+      });
+      this.search_results.bind('touchend.chosen', function(evt) {
+        _this.search_results_touchend(evt);
+      });
+      this.form_field_jq.bind("chosen:updated.chosen", function(evt) {
+        _this.results_update_field(evt);
+      });
+      this.form_field_jq.bind("chosen:activate.chosen", function(evt) {
+        _this.activate_field(evt);
+      });
+      this.form_field_jq.bind("chosen:open.chosen", function(evt) {
+        _this.container_mousedown(evt);
+      });
+      this.form_field_jq.bind("chosen:close.chosen", function(evt) {
+        _this.input_blur(evt);
+      });
+      this.search_field.bind('blur.chosen', function(evt) {
+        _this.input_blur(evt);
+      });
+      this.search_field.bind('keyup.chosen', function(evt) {
+        _this.keyup_checker(evt);
+      });
+      this.search_field.bind('keydown.chosen', function(evt) {
+        _this.keydown_checker(evt);
+      });
+      this.search_field.bind('focus.chosen', function(evt) {
+        _this.input_focus(evt);
+      });
+      this.search_field.bind('cut.chosen', function(evt) {
+        _this.clipboard_event_checker(evt);
+      });
+      this.search_field.bind('paste.chosen', function(evt) {
+        _this.clipboard_event_checker(evt);
+      });
+      if (this.is_multiple) {
+        return this.search_choices.bind('click.chosen', function(evt) {
+          _this.choices_click(evt);
+        });
+      } else {
+        return this.container.bind('click.chosen', function(evt) {
+          evt.preventDefault();
+        });
+      }
+    };
+
+    Chosen.prototype.destroy = function() {
+      $(this.container[0].ownerDocument).unbind("click.chosen", this.click_test_action);
+      if (this.search_field[0].tabIndex) {
+        this.form_field_jq[0].tabIndex = this.search_field[0].tabIndex;
+      }
+      this.container.remove();
+      this.form_field_jq.removeData('chosen');
+      return this.form_field_jq.show();
+    };
+
+    Chosen.prototype.search_field_disabled = function() {
+      this.is_disabled = this.form_field_jq[0].disabled;
+      if (this.is_disabled) {
+        this.container.addClass('chosen-disabled');
+        this.search_field[0].disabled = true;
+        if (!this.is_multiple) {
+          this.selected_item.unbind("focus.chosen", this.activate_action);
+        }
+        return this.close_field();
+      } else {
+        this.container.removeClass('chosen-disabled');
+        this.search_field[0].disabled = false;
+        if (!this.is_multiple) {
+          return this.selected_item.bind("focus.chosen", this.activate_action);
+        }
+      }
+    };
+
+    Chosen.prototype.container_mousedown = function(evt) {
+      if (!this.is_disabled) {
+        if (evt && evt.type === "mousedown" && !this.results_showing) {
+          evt.preventDefault();
+        }
+        if (!((evt != null) && ($(evt.target)).hasClass("search-choice-close"))) {
+          if (!this.active_field) {
+            if (this.is_multiple) {
+              this.search_field.val("");
+            }
+            $(this.container[0].ownerDocument).bind('click.chosen', this.click_test_action);
+            this.results_show();
+          } else if (!this.is_multiple && evt && (($(evt.target)[0] === this.selected_item[0]) || $(evt.target).parents("a.chosen-single").length)) {
+            evt.preventDefault();
+            this.results_toggle();
+          }
+          return this.activate_field();
+        }
+      }
+    };
+
+    Chosen.prototype.container_mouseup = function(evt) {
+      if (evt.target.nodeName === "ABBR" && !this.is_disabled) {
+        return this.results_reset(evt);
+      }
+    };
+
+    Chosen.prototype.search_results_mousewheel = function(evt) {
+      var delta;
+      if (evt.originalEvent) {
+        delta = -evt.originalEvent.wheelDelta || evt.originalEvent.detail;
+      }
+      if (delta != null) {
+        evt.preventDefault();
+        if (evt.type === 'DOMMouseScroll') {
+          delta = delta * 40;
+        }
+        return this.search_results.scrollTop(delta + this.search_results.scrollTop());
+      }
+    };
+
+    Chosen.prototype.blur_test = function(evt) {
+      if (!this.active_field && this.container.hasClass("chosen-container-active")) {
+        return this.close_field();
+      }
+    };
+
+    Chosen.prototype.close_field = function() {
+      $(this.container[0].ownerDocument).unbind("click.chosen", this.click_test_action);
+      this.active_field = false;
+      this.results_hide();
+      this.container.removeClass("chosen-container-active");
+      this.clear_backstroke();
+      this.show_search_field_default();
+      return this.search_field_scale();
+    };
+
+    Chosen.prototype.activate_field = function() {
+      this.container.addClass("chosen-container-active");
+      this.active_field = true;
+      this.search_field.val(this.search_field.val());
+      return this.search_field.focus();
+    };
+
+    Chosen.prototype.test_active_click = function(evt) {
+      var active_container;
+      active_container = $(evt.target).closest('.chosen-container');
+      if (active_container.length && this.container[0] === active_container[0]) {
+        return this.active_field = true;
+      } else {
+        return this.close_field();
+      }
+    };
+
+    Chosen.prototype.results_build = function() {
+      this.parsing = true;
+      this.selected_option_count = null;
+      this.results_data = SelectParser.select_to_array(this.form_field);
+      if (this.is_multiple) {
+        this.search_choices.find("li.search-choice").remove();
+      } else if (!this.is_multiple) {
+        this.single_set_selected_text();
+        if (this.disable_search || this.form_field.options.length <= this.disable_search_threshold) {
+          this.search_field[0].readOnly = true;
+          this.container.addClass("chosen-container-single-nosearch");
+        } else {
+          this.search_field[0].readOnly = false;
+          this.container.removeClass("chosen-container-single-nosearch");
+        }
+      }
+      this.update_results_content(this.results_option_build({
+        first: true
+      }));
+      this.search_field_disabled();
+      this.show_search_field_default();
+      this.search_field_scale();
+      return this.parsing = false;
+    };
+
+    Chosen.prototype.result_do_highlight = function(el) {
+      var high_bottom, high_top, maxHeight, visible_bottom, visible_top;
+      if (el.length) {
+        this.result_clear_highlight();
+        this.result_highlight = el;
+        this.result_highlight.addClass("highlighted");
+        maxHeight = parseInt(this.search_results.css("maxHeight"), 10);
+        visible_top = this.search_results.scrollTop();
+        visible_bottom = maxHeight + visible_top;
+        high_top = this.result_highlight.position().top + this.search_results.scrollTop();
+        high_bottom = high_top + this.result_highlight.outerHeight();
+        if (high_bottom >= visible_bottom) {
+          return this.search_results.scrollTop((high_bottom - maxHeight) > 0 ? high_bottom - maxHeight : 0);
+        } else if (high_top < visible_top) {
+          return this.search_results.scrollTop(high_top);
+        }
+      }
+    };
+
+    Chosen.prototype.result_clear_highlight = function() {
+      if (this.result_highlight) {
+        this.result_highlight.removeClass("highlighted");
+      }
+      return this.result_highlight = null;
+    };
+
+    Chosen.prototype.results_show = function() {
+      if (this.is_multiple && this.max_selected_options <= this.choices_count()) {
+        this.form_field_jq.trigger("chosen:maxselected", {
+          chosen: this
+        });
+        return false;
+      }
+      this.container.addClass("chosen-with-drop");
+      this.results_showing = true;
+      this.search_field.focus();
+      this.search_field.val(this.search_field.val());
+      this.winnow_results();
+      return this.form_field_jq.trigger("chosen:showing_dropdown", {
+        chosen: this
+      });
+    };
+
+    Chosen.prototype.update_results_content = function(content) {
+      return this.search_results.html(content);
+    };
+
+    Chosen.prototype.results_hide = function() {
+      if (this.results_showing) {
+        this.result_clear_highlight();
+        this.container.removeClass("chosen-with-drop");
+        this.form_field_jq.trigger("chosen:hiding_dropdown", {
+          chosen: this
+        });
+      }
+      return this.results_showing = false;
+    };
+
+    Chosen.prototype.set_tab_index = function(el) {
+      var ti;
+      if (this.form_field.tabIndex) {
+        ti = this.form_field.tabIndex;
+        this.form_field.tabIndex = -1;
+        return this.search_field[0].tabIndex = ti;
+      }
+    };
+
+    Chosen.prototype.set_label_behavior = function() {
+      var _this = this;
+      this.form_field_label = this.form_field_jq.parents("label");
+      if (!this.form_field_label.length && this.form_field.id.length) {
+        this.form_field_label = $("label[for='" + this.form_field.id + "']");
+      }
+      if (this.form_field_label.length > 0) {
+        return this.form_field_label.bind('click.chosen', function(evt) {
+          if (_this.is_multiple) {
+            return _this.container_mousedown(evt);
+          } else {
+            return _this.activate_field();
+          }
+        });
+      }
+    };
+
+    Chosen.prototype.show_search_field_default = function() {
+      if (this.is_multiple && this.choices_count() < 1 && !this.active_field) {
+        this.search_field.val(this.default_text);
+        return this.search_field.addClass("default");
+      } else {
+        this.search_field.val("");
+        return this.search_field.removeClass("default");
+      }
+    };
+
+    Chosen.prototype.search_results_mouseup = function(evt) {
+      var target;
+      target = $(evt.target).hasClass("active-result") ? $(evt.target) : $(evt.target).parents(".active-result").first();
+      if (target.length) {
+        this.result_highlight = target;
+        this.result_select(evt);
+        return this.search_field.focus();
+      }
+    };
+
+    Chosen.prototype.search_results_mouseover = function(evt) {
+      var target;
+      target = $(evt.target).hasClass("active-result") ? $(evt.target) : $(evt.target).parents(".active-result").first();
+      if (target) {
+        return this.result_do_highlight(target);
+      }
+    };
+
+    Chosen.prototype.search_results_mouseout = function(evt) {
+      if ($(evt.target).hasClass("active-result" || $(evt.target).parents('.active-result').first())) {
+        return this.result_clear_highlight();
+      }
+    };
+
+    Chosen.prototype.choice_build = function(item) {
+      var choice, close_link,
+        _this = this;
+      choice = $('<li />', {
+        "class": "search-choice"
+      }).html("<span>" + item.html + "</span>");
+      if (item.disabled) {
+        choice.addClass('search-choice-disabled');
+      } else {
+        close_link = $('<a />', {
+          "class": 'search-choice-close',
+          'data-option-array-index': item.array_index
+        });
+        close_link.bind('click.chosen', function(evt) {
+          return _this.choice_destroy_link_click(evt);
+        });
+        choice.append(close_link);
+      }
+      return this.search_container.before(choice);
+    };
+
+    Chosen.prototype.choice_destroy_link_click = function(evt) {
+      evt.preventDefault();
+      evt.stopPropagation();
+      if (!this.is_disabled) {
+        return this.choice_destroy($(evt.target));
+      }
+    };
+
+    Chosen.prototype.choice_destroy = function(link) {
+      if (this.result_deselect(link[0].getAttribute("data-option-array-index"))) {
+        this.show_search_field_default();
+        if (this.is_multiple && this.choices_count() > 0 && this.search_field.val().length < 1) {
+          this.results_hide();
+        }
+        link.parents('li').first().remove();
+        return this.search_field_scale();
+      }
+    };
+
+    Chosen.prototype.results_reset = function() {
+      this.reset_single_select_options();
+      this.form_field.options[0].selected = true;
+      this.single_set_selected_text();
+      this.show_search_field_default();
+      this.results_reset_cleanup();
+      this.form_field_jq.trigger("change");
+      if (this.active_field) {
+        return this.results_hide();
+      }
+    };
+
+    Chosen.prototype.results_reset_cleanup = function() {
+      this.current_selectedIndex = this.form_field.selectedIndex;
+      return this.selected_item.find("abbr").remove();
+    };
+
+    Chosen.prototype.result_select = function(evt) {
+      var high, item;
+      if (this.result_highlight) {
+        high = this.result_highlight;
+        this.result_clear_highlight();
+        if (this.is_multiple && this.max_selected_options <= this.choices_count()) {
+          this.form_field_jq.trigger("chosen:maxselected", {
+            chosen: this
+          });
+          return false;
+        }
+        if (this.is_multiple) {
+          high.removeClass("active-result");
+        } else {
+          this.reset_single_select_options();
+        }
+        item = this.results_data[high[0].getAttribute("data-option-array-index")];
+        item.selected = true;
+        this.form_field.options[item.options_index].selected = true;
+        this.selected_option_count = null;
+        if (this.is_multiple) {
+          this.choice_build(item);
+        } else {
+          this.single_set_selected_text(item.text);
+        }
+        if (!((evt.metaKey || evt.ctrlKey) && this.is_multiple)) {
+          this.results_hide();
+        }
+        this.search_field.val("");
+        if (this.is_multiple || this.form_field.selectedIndex !== this.current_selectedIndex) {
+          this.form_field_jq.trigger("change", {
+            'selected': this.form_field.options[item.options_index].value
+          });
+        }
+        this.current_selectedIndex = this.form_field.selectedIndex;
+        return this.search_field_scale();
+      }
+    };
+
+    Chosen.prototype.single_set_selected_text = function(text) {
+      if (text == null) {
+        text = this.default_text;
+      }
+      if (text === this.default_text) {
+        this.selected_item.addClass("chosen-default");
+      } else {
+        this.single_deselect_control_build();
+        this.selected_item.removeClass("chosen-default");
+      }
+      return this.selected_item.find("span").text(text);
+    };
+
+    Chosen.prototype.result_deselect = function(pos) {
+      var result_data;
+      result_data = this.results_data[pos];
+      if (!this.form_field.options[result_data.options_index].disabled) {
+        result_data.selected = false;
+        this.form_field.options[result_data.options_index].selected = false;
+        this.selected_option_count = null;
+        this.result_clear_highlight();
+        if (this.results_showing) {
+          this.winnow_results();
+        }
+        this.form_field_jq.trigger("change", {
+          deselected: this.form_field.options[result_data.options_index].value
+        });
+        this.search_field_scale();
+        return true;
+      } else {
+        return false;
+      }
+    };
+
+    Chosen.prototype.single_deselect_control_build = function() {
+      if (!this.allow_single_deselect) {
+        return;
+      }
+      if (!this.selected_item.find("abbr").length) {
+        this.selected_item.find("span").first().after("<abbr class=\"search-choice-close\"></abbr>");
+      }
+      return this.selected_item.addClass("chosen-single-with-deselect");
+    };
+
+    Chosen.prototype.get_search_text = function() {
+      if (this.search_field.val() === this.default_text) {
+        return "";
+      } else {
+        return $('<div/>').text($.trim(this.search_field.val())).html();
+      }
+    };
+
+    Chosen.prototype.winnow_results_set_highlight = function() {
+      var do_high, selected_results;
+      selected_results = !this.is_multiple ? this.search_results.find(".result-selected.active-result") : [];
+      do_high = selected_results.length ? selected_results.first() : this.search_results.find(".active-result").first();
+      if (do_high != null) {
+        return this.result_do_highlight(do_high);
+      }
+    };
+
+    Chosen.prototype.no_results = function(terms) {
+      var no_results_html;
+      no_results_html = $('<li class="no-results">' + this.results_none_found + ' "<span></span>"</li>');
+      no_results_html.find("span").first().html(terms);
+      this.search_results.append(no_results_html);
+      return this.form_field_jq.trigger("chosen:no_results", {
+        chosen: this
+      });
+    };
+
+    Chosen.prototype.no_results_clear = function() {
+      return this.search_results.find(".no-results").remove();
+    };
+
+    Chosen.prototype.keydown_arrow = function() {
+      var next_sib;
+      if (this.results_showing && this.result_highlight) {
+        next_sib = this.result_highlight.nextAll("li.active-result").first();
+        if (next_sib) {
+          return this.result_do_highlight(next_sib);
+        }
+      } else {
+        return this.results_show();
+      }
+    };
+
+    Chosen.prototype.keyup_arrow = function() {
+      var prev_sibs;
+      if (!this.results_showing && !this.is_multiple) {
+        return this.results_show();
+      } else if (this.result_highlight) {
+        prev_sibs = this.result_highlight.prevAll("li.active-result");
+        if (prev_sibs.length) {
+          return this.result_do_highlight(prev_sibs.first());
+        } else {
+          if (this.choices_count() > 0) {
+            this.results_hide();
+          }
+          return this.result_clear_highlight();
+        }
+      }
+    };
+
+    Chosen.prototype.keydown_backstroke = function() {
+      var next_available_destroy;
+      if (this.pending_backstroke) {
+        this.choice_destroy(this.pending_backstroke.find("a").first());
+        return this.clear_backstroke();
+      } else {
+        next_available_destroy = this.search_container.siblings("li.search-choice").last();
+        if (next_available_destroy.length && !next_available_destroy.hasClass("search-choice-disabled")) {
+          this.pending_backstroke = next_available_destroy;
+          if (this.single_backstroke_delete) {
+            return this.keydown_backstroke();
+          } else {
+            return this.pending_backstroke.addClass("search-choice-focus");
+          }
+        }
+      }
+    };
+
+    Chosen.prototype.clear_backstroke = function() {
+      if (this.pending_backstroke) {
+        this.pending_backstroke.removeClass("search-choice-focus");
+      }
+      return this.pending_backstroke = null;
+    };
+
+    Chosen.prototype.keydown_checker = function(evt) {
+      var stroke, _ref1;
+      stroke = (_ref1 = evt.which) != null ? _ref1 : evt.keyCode;
+      this.search_field_scale();
+      if (stroke !== 8 && this.pending_backstroke) {
+        this.clear_backstroke();
+      }
+      switch (stroke) {
+        case 8:
+          this.backstroke_length = this.search_field.val().length;
+          break;
+        case 9:
+          if (this.results_showing && !this.is_multiple) {
+            this.result_select(evt);
+          }
+          this.mouse_on_container = false;
+          break;
+        case 13:
+          evt.preventDefault();
+          break;
+        case 38:
+          evt.preventDefault();
+          this.keyup_arrow();
+          break;
+        case 40:
+          evt.preventDefault();
+          this.keydown_arrow();
+          break;
+      }
+    };
+
+    Chosen.prototype.search_field_scale = function() {
+      var div, f_width, h, style, style_block, styles, w, _i, _len;
+      if (this.is_multiple) {
+        h = 0;
+        w = 0;
+        style_block = "position:absolute; left: -1000px; top: -1000px; display:none;";
+        styles = ['font-size', 'font-style', 'font-weight', 'font-family', 'line-height', 'text-transform', 'letter-spacing'];
+        for (_i = 0, _len = styles.length; _i < _len; _i++) {
+          style = styles[_i];
+          style_block += style + ":" + this.search_field.css(style) + ";";
+        }
+        div = $('<div />', {
+          'style': style_block
+        });
+        div.text(this.search_field.val());
+        $('body').append(div);
+        w = div.width() + 25;
+        div.remove();
+        f_width = this.container.outerWidth();
+        if (w > f_width - 10) {
+          w = f_width - 10;
+        }
+        return this.search_field.css({
+          'width': w + 'px'
+        });
+      }
+    };
+
+    return Chosen;
+
+  })(AbstractChosen);
+
+}).call(this);
+/**
  * @license AngularJS v1.4.6
  * (c) 2010-2015 Google, Inc. http://angularjs.org
  * License: MIT
@@ -42704,19 +45202,1910 @@ factory('ipCookie', ['$document',
     }());
   }
 ]);
+/**
+ * @license AngularJS v1.4.6
+ * (c) 2010-2015 Google, Inc. http://angularjs.org
+ * License: MIT
+ */
+
+(function(window, angular, undefined) {'use strict';
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ *     Any commits to this file should be reviewed with security in mind.  *
+ *   Changes to this file can potentially create security vulnerabilities. *
+ *          An approval from 2 Core members with history of modifying      *
+ *                         this file is required.                          *
+ *                                                                         *
+ *  Does the change somehow allow for arbitrary javascript to be executed? *
+ *    Or allows for someone to change the prototype of built-in objects?   *
+ *     Or gives undesired access to variables likes document or window?    *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+var $sanitizeMinErr = angular.$$minErr('$sanitize');
+
+/**
+ * @ngdoc module
+ * @name ngSanitize
+ * @description
+ *
+ * # ngSanitize
+ *
+ * The `ngSanitize` module provides functionality to sanitize HTML.
+ *
+ *
+ * <div doc-module-components="ngSanitize"></div>
+ *
+ * See {@link ngSanitize.$sanitize `$sanitize`} for usage.
+ */
+
+/*
+ * HTML Parser By Misko Hevery (misko@hevery.com)
+ * based on:  HTML Parser By John Resig (ejohn.org)
+ * Original code by Erik Arvidsson, Mozilla Public License
+ * http://erik.eae.net/simplehtmlparser/simplehtmlparser.js
+ *
+ * // Use like so:
+ * htmlParser(htmlString, {
+ *     start: function(tag, attrs, unary) {},
+ *     end: function(tag) {},
+ *     chars: function(text) {},
+ *     comment: function(text) {}
+ * });
+ *
+ */
+
+
+/**
+ * @ngdoc service
+ * @name $sanitize
+ * @kind function
+ *
+ * @description
+ *   The input is sanitized by parsing the HTML into tokens. All safe tokens (from a whitelist) are
+ *   then serialized back to properly escaped html string. This means that no unsafe input can make
+ *   it into the returned string, however, since our parser is more strict than a typical browser
+ *   parser, it's possible that some obscure input, which would be recognized as valid HTML by a
+ *   browser, won't make it through the sanitizer. The input may also contain SVG markup.
+ *   The whitelist is configured using the functions `aHrefSanitizationWhitelist` and
+ *   `imgSrcSanitizationWhitelist` of {@link ng.$compileProvider `$compileProvider`}.
+ *
+ * @param {string} html HTML input.
+ * @returns {string} Sanitized HTML.
+ *
+ * @example
+   <example module="sanitizeExample" deps="angular-sanitize.js">
+   <file name="index.html">
+     <script>
+         angular.module('sanitizeExample', ['ngSanitize'])
+           .controller('ExampleController', ['$scope', '$sce', function($scope, $sce) {
+             $scope.snippet =
+               '<p style="color:blue">an html\n' +
+               '<em onmouseover="this.textContent=\'PWN3D!\'">click here</em>\n' +
+               'snippet</p>';
+             $scope.deliberatelyTrustDangerousSnippet = function() {
+               return $sce.trustAsHtml($scope.snippet);
+             };
+           }]);
+     </script>
+     <div ng-controller="ExampleController">
+        Snippet: <textarea ng-model="snippet" cols="60" rows="3"></textarea>
+       <table>
+         <tr>
+           <td>Directive</td>
+           <td>How</td>
+           <td>Source</td>
+           <td>Rendered</td>
+         </tr>
+         <tr id="bind-html-with-sanitize">
+           <td>ng-bind-html</td>
+           <td>Automatically uses $sanitize</td>
+           <td><pre>&lt;div ng-bind-html="snippet"&gt;<br/>&lt;/div&gt;</pre></td>
+           <td><div ng-bind-html="snippet"></div></td>
+         </tr>
+         <tr id="bind-html-with-trust">
+           <td>ng-bind-html</td>
+           <td>Bypass $sanitize by explicitly trusting the dangerous value</td>
+           <td>
+           <pre>&lt;div ng-bind-html="deliberatelyTrustDangerousSnippet()"&gt;
+&lt;/div&gt;</pre>
+           </td>
+           <td><div ng-bind-html="deliberatelyTrustDangerousSnippet()"></div></td>
+         </tr>
+         <tr id="bind-default">
+           <td>ng-bind</td>
+           <td>Automatically escapes</td>
+           <td><pre>&lt;div ng-bind="snippet"&gt;<br/>&lt;/div&gt;</pre></td>
+           <td><div ng-bind="snippet"></div></td>
+         </tr>
+       </table>
+       </div>
+   </file>
+   <file name="protractor.js" type="protractor">
+     it('should sanitize the html snippet by default', function() {
+       expect(element(by.css('#bind-html-with-sanitize div')).getInnerHtml()).
+         toBe('<p>an html\n<em>click here</em>\nsnippet</p>');
+     });
+
+     it('should inline raw snippet if bound to a trusted value', function() {
+       expect(element(by.css('#bind-html-with-trust div')).getInnerHtml()).
+         toBe("<p style=\"color:blue\">an html\n" +
+              "<em onmouseover=\"this.textContent='PWN3D!'\">click here</em>\n" +
+              "snippet</p>");
+     });
+
+     it('should escape snippet without any filter', function() {
+       expect(element(by.css('#bind-default div')).getInnerHtml()).
+         toBe("&lt;p style=\"color:blue\"&gt;an html\n" +
+              "&lt;em onmouseover=\"this.textContent='PWN3D!'\"&gt;click here&lt;/em&gt;\n" +
+              "snippet&lt;/p&gt;");
+     });
+
+     it('should update', function() {
+       element(by.model('snippet')).clear();
+       element(by.model('snippet')).sendKeys('new <b onclick="alert(1)">text</b>');
+       expect(element(by.css('#bind-html-with-sanitize div')).getInnerHtml()).
+         toBe('new <b>text</b>');
+       expect(element(by.css('#bind-html-with-trust div')).getInnerHtml()).toBe(
+         'new <b onclick="alert(1)">text</b>');
+       expect(element(by.css('#bind-default div')).getInnerHtml()).toBe(
+         "new &lt;b onclick=\"alert(1)\"&gt;text&lt;/b&gt;");
+     });
+   </file>
+   </example>
+ */
+function $SanitizeProvider() {
+  this.$get = ['$$sanitizeUri', function($$sanitizeUri) {
+    return function(html) {
+      var buf = [];
+      htmlParser(html, htmlSanitizeWriter(buf, function(uri, isImage) {
+        return !/^unsafe/.test($$sanitizeUri(uri, isImage));
+      }));
+      return buf.join('');
+    };
+  }];
+}
+
+function sanitizeText(chars) {
+  var buf = [];
+  var writer = htmlSanitizeWriter(buf, angular.noop);
+  writer.chars(chars);
+  return buf.join('');
+}
+
+
+// Regular Expressions for parsing tags and attributes
+var START_TAG_REGEXP =
+       /^<((?:[a-zA-Z])[\w:-]*)((?:\s+[\w:-]+(?:\s*=\s*(?:(?:"[^"]*")|(?:'[^']*')|[^>\s]+))?)*)\s*(\/?)\s*(>?)/,
+  END_TAG_REGEXP = /^<\/\s*([\w:-]+)[^>]*>/,
+  ATTR_REGEXP = /([\w:-]+)(?:\s*=\s*(?:(?:"((?:[^"])*)")|(?:'((?:[^'])*)')|([^>\s]+)))?/g,
+  BEGIN_TAG_REGEXP = /^</,
+  BEGING_END_TAGE_REGEXP = /^<\//,
+  COMMENT_REGEXP = /<!--(.*?)-->/g,
+  DOCTYPE_REGEXP = /<!DOCTYPE([^>]*?)>/i,
+  CDATA_REGEXP = /<!\[CDATA\[(.*?)]]>/g,
+  SURROGATE_PAIR_REGEXP = /[\uD800-\uDBFF][\uDC00-\uDFFF]/g,
+  // Match everything outside of normal chars and " (quote character)
+  NON_ALPHANUMERIC_REGEXP = /([^\#-~| |!])/g;
+
+
+// Good source of info about elements and attributes
+// http://dev.w3.org/html5/spec/Overview.html#semantics
+// http://simon.html5.org/html-elements
+
+// Safe Void Elements - HTML5
+// http://dev.w3.org/html5/spec/Overview.html#void-elements
+var voidElements = makeMap("area,br,col,hr,img,wbr");
+
+// Elements that you can, intentionally, leave open (and which close themselves)
+// http://dev.w3.org/html5/spec/Overview.html#optional-tags
+var optionalEndTagBlockElements = makeMap("colgroup,dd,dt,li,p,tbody,td,tfoot,th,thead,tr"),
+    optionalEndTagInlineElements = makeMap("rp,rt"),
+    optionalEndTagElements = angular.extend({},
+                                            optionalEndTagInlineElements,
+                                            optionalEndTagBlockElements);
+
+// Safe Block Elements - HTML5
+var blockElements = angular.extend({}, optionalEndTagBlockElements, makeMap("address,article," +
+        "aside,blockquote,caption,center,del,dir,div,dl,figure,figcaption,footer,h1,h2,h3,h4,h5," +
+        "h6,header,hgroup,hr,ins,map,menu,nav,ol,pre,script,section,table,ul"));
+
+// Inline Elements - HTML5
+var inlineElements = angular.extend({}, optionalEndTagInlineElements, makeMap("a,abbr,acronym,b," +
+        "bdi,bdo,big,br,cite,code,del,dfn,em,font,i,img,ins,kbd,label,map,mark,q,ruby,rp,rt,s," +
+        "samp,small,span,strike,strong,sub,sup,time,tt,u,var"));
+
+// SVG Elements
+// https://wiki.whatwg.org/wiki/Sanitization_rules#svg_Elements
+// Note: the elements animate,animateColor,animateMotion,animateTransform,set are intentionally omitted.
+// They can potentially allow for arbitrary javascript to be executed. See #11290
+var svgElements = makeMap("circle,defs,desc,ellipse,font-face,font-face-name,font-face-src,g,glyph," +
+        "hkern,image,linearGradient,line,marker,metadata,missing-glyph,mpath,path,polygon,polyline," +
+        "radialGradient,rect,stop,svg,switch,text,title,tspan,use");
+
+// Special Elements (can contain anything)
+var specialElements = makeMap("script,style");
+
+var validElements = angular.extend({},
+                                   voidElements,
+                                   blockElements,
+                                   inlineElements,
+                                   optionalEndTagElements,
+                                   svgElements);
+
+//Attributes that have href and hence need to be sanitized
+var uriAttrs = makeMap("background,cite,href,longdesc,src,usemap,xlink:href");
+
+var htmlAttrs = makeMap('abbr,align,alt,axis,bgcolor,border,cellpadding,cellspacing,class,clear,' +
+    'color,cols,colspan,compact,coords,dir,face,headers,height,hreflang,hspace,' +
+    'ismap,lang,language,nohref,nowrap,rel,rev,rows,rowspan,rules,' +
+    'scope,scrolling,shape,size,span,start,summary,tabindex,target,title,type,' +
+    'valign,value,vspace,width');
+
+// SVG attributes (without "id" and "name" attributes)
+// https://wiki.whatwg.org/wiki/Sanitization_rules#svg_Attributes
+var svgAttrs = makeMap('accent-height,accumulate,additive,alphabetic,arabic-form,ascent,' +
+    'baseProfile,bbox,begin,by,calcMode,cap-height,class,color,color-rendering,content,' +
+    'cx,cy,d,dx,dy,descent,display,dur,end,fill,fill-rule,font-family,font-size,font-stretch,' +
+    'font-style,font-variant,font-weight,from,fx,fy,g1,g2,glyph-name,gradientUnits,hanging,' +
+    'height,horiz-adv-x,horiz-origin-x,ideographic,k,keyPoints,keySplines,keyTimes,lang,' +
+    'marker-end,marker-mid,marker-start,markerHeight,markerUnits,markerWidth,mathematical,' +
+    'max,min,offset,opacity,orient,origin,overline-position,overline-thickness,panose-1,' +
+    'path,pathLength,points,preserveAspectRatio,r,refX,refY,repeatCount,repeatDur,' +
+    'requiredExtensions,requiredFeatures,restart,rotate,rx,ry,slope,stemh,stemv,stop-color,' +
+    'stop-opacity,strikethrough-position,strikethrough-thickness,stroke,stroke-dasharray,' +
+    'stroke-dashoffset,stroke-linecap,stroke-linejoin,stroke-miterlimit,stroke-opacity,' +
+    'stroke-width,systemLanguage,target,text-anchor,to,transform,type,u1,u2,underline-position,' +
+    'underline-thickness,unicode,unicode-range,units-per-em,values,version,viewBox,visibility,' +
+    'width,widths,x,x-height,x1,x2,xlink:actuate,xlink:arcrole,xlink:role,xlink:show,xlink:title,' +
+    'xlink:type,xml:base,xml:lang,xml:space,xmlns,xmlns:xlink,y,y1,y2,zoomAndPan', true);
+
+var validAttrs = angular.extend({},
+                                uriAttrs,
+                                svgAttrs,
+                                htmlAttrs);
+
+function makeMap(str, lowercaseKeys) {
+  var obj = {}, items = str.split(','), i;
+  for (i = 0; i < items.length; i++) {
+    obj[lowercaseKeys ? angular.lowercase(items[i]) : items[i]] = true;
+  }
+  return obj;
+}
+
+
+/**
+ * @example
+ * htmlParser(htmlString, {
+ *     start: function(tag, attrs, unary) {},
+ *     end: function(tag) {},
+ *     chars: function(text) {},
+ *     comment: function(text) {}
+ * });
+ *
+ * @param {string} html string
+ * @param {object} handler
+ */
+function htmlParser(html, handler) {
+  if (typeof html !== 'string') {
+    if (html === null || typeof html === 'undefined') {
+      html = '';
+    } else {
+      html = '' + html;
+    }
+  }
+  var index, chars, match, stack = [], last = html, text;
+  stack.last = function() { return stack[stack.length - 1]; };
+
+  while (html) {
+    text = '';
+    chars = true;
+
+    // Make sure we're not in a script or style element
+    if (!stack.last() || !specialElements[stack.last()]) {
+
+      // Comment
+      if (html.indexOf("<!--") === 0) {
+        // comments containing -- are not allowed unless they terminate the comment
+        index = html.indexOf("--", 4);
+
+        if (index >= 0 && html.lastIndexOf("-->", index) === index) {
+          if (handler.comment) handler.comment(html.substring(4, index));
+          html = html.substring(index + 3);
+          chars = false;
+        }
+      // DOCTYPE
+      } else if (DOCTYPE_REGEXP.test(html)) {
+        match = html.match(DOCTYPE_REGEXP);
+
+        if (match) {
+          html = html.replace(match[0], '');
+          chars = false;
+        }
+      // end tag
+      } else if (BEGING_END_TAGE_REGEXP.test(html)) {
+        match = html.match(END_TAG_REGEXP);
+
+        if (match) {
+          html = html.substring(match[0].length);
+          match[0].replace(END_TAG_REGEXP, parseEndTag);
+          chars = false;
+        }
+
+      // start tag
+      } else if (BEGIN_TAG_REGEXP.test(html)) {
+        match = html.match(START_TAG_REGEXP);
+
+        if (match) {
+          // We only have a valid start-tag if there is a '>'.
+          if (match[4]) {
+            html = html.substring(match[0].length);
+            match[0].replace(START_TAG_REGEXP, parseStartTag);
+          }
+          chars = false;
+        } else {
+          // no ending tag found --- this piece should be encoded as an entity.
+          text += '<';
+          html = html.substring(1);
+        }
+      }
+
+      if (chars) {
+        index = html.indexOf("<");
+
+        text += index < 0 ? html : html.substring(0, index);
+        html = index < 0 ? "" : html.substring(index);
+
+        if (handler.chars) handler.chars(decodeEntities(text));
+      }
+
+    } else {
+      // IE versions 9 and 10 do not understand the regex '[^]', so using a workaround with [\W\w].
+      html = html.replace(new RegExp("([\\W\\w]*)<\\s*\\/\\s*" + stack.last() + "[^>]*>", 'i'),
+        function(all, text) {
+          text = text.replace(COMMENT_REGEXP, "$1").replace(CDATA_REGEXP, "$1");
+
+          if (handler.chars) handler.chars(decodeEntities(text));
+
+          return "";
+      });
+
+      parseEndTag("", stack.last());
+    }
+
+    if (html == last) {
+      throw $sanitizeMinErr('badparse', "The sanitizer was unable to parse the following block " +
+                                        "of html: {0}", html);
+    }
+    last = html;
+  }
+
+  // Clean up any remaining tags
+  parseEndTag();
+
+  function parseStartTag(tag, tagName, rest, unary) {
+    tagName = angular.lowercase(tagName);
+    if (blockElements[tagName]) {
+      while (stack.last() && inlineElements[stack.last()]) {
+        parseEndTag("", stack.last());
+      }
+    }
+
+    if (optionalEndTagElements[tagName] && stack.last() == tagName) {
+      parseEndTag("", tagName);
+    }
+
+    unary = voidElements[tagName] || !!unary;
+
+    if (!unary) {
+      stack.push(tagName);
+    }
+
+    var attrs = {};
+
+    rest.replace(ATTR_REGEXP,
+      function(match, name, doubleQuotedValue, singleQuotedValue, unquotedValue) {
+        var value = doubleQuotedValue
+          || singleQuotedValue
+          || unquotedValue
+          || '';
+
+        attrs[name] = decodeEntities(value);
+    });
+    if (handler.start) handler.start(tagName, attrs, unary);
+  }
+
+  function parseEndTag(tag, tagName) {
+    var pos = 0, i;
+    tagName = angular.lowercase(tagName);
+    if (tagName) {
+      // Find the closest opened tag of the same type
+      for (pos = stack.length - 1; pos >= 0; pos--) {
+        if (stack[pos] == tagName) break;
+      }
+    }
+
+    if (pos >= 0) {
+      // Close all the open elements, up the stack
+      for (i = stack.length - 1; i >= pos; i--)
+        if (handler.end) handler.end(stack[i]);
+
+      // Remove the open elements from the stack
+      stack.length = pos;
+    }
+  }
+}
+
+var hiddenPre=document.createElement("pre");
+/**
+ * decodes all entities into regular string
+ * @param value
+ * @returns {string} A string with decoded entities.
+ */
+function decodeEntities(value) {
+  if (!value) { return ''; }
+
+  hiddenPre.innerHTML = value.replace(/</g,"&lt;");
+  // innerText depends on styling as it doesn't display hidden elements.
+  // Therefore, it's better to use textContent not to cause unnecessary reflows.
+  return hiddenPre.textContent;
+}
+
+/**
+ * Escapes all potentially dangerous characters, so that the
+ * resulting string can be safely inserted into attribute or
+ * element text.
+ * @param value
+ * @returns {string} escaped text
+ */
+function encodeEntities(value) {
+  return value.
+    replace(/&/g, '&amp;').
+    replace(SURROGATE_PAIR_REGEXP, function(value) {
+      var hi = value.charCodeAt(0);
+      var low = value.charCodeAt(1);
+      return '&#' + (((hi - 0xD800) * 0x400) + (low - 0xDC00) + 0x10000) + ';';
+    }).
+    replace(NON_ALPHANUMERIC_REGEXP, function(value) {
+      return '&#' + value.charCodeAt(0) + ';';
+    }).
+    replace(/</g, '&lt;').
+    replace(/>/g, '&gt;');
+}
+
+/**
+ * create an HTML/XML writer which writes to buffer
+ * @param {Array} buf use buf.jain('') to get out sanitized html string
+ * @returns {object} in the form of {
+ *     start: function(tag, attrs, unary) {},
+ *     end: function(tag) {},
+ *     chars: function(text) {},
+ *     comment: function(text) {}
+ * }
+ */
+function htmlSanitizeWriter(buf, uriValidator) {
+  var ignore = false;
+  var out = angular.bind(buf, buf.push);
+  return {
+    start: function(tag, attrs, unary) {
+      tag = angular.lowercase(tag);
+      if (!ignore && specialElements[tag]) {
+        ignore = tag;
+      }
+      if (!ignore && validElements[tag] === true) {
+        out('<');
+        out(tag);
+        angular.forEach(attrs, function(value, key) {
+          var lkey=angular.lowercase(key);
+          var isImage = (tag === 'img' && lkey === 'src') || (lkey === 'background');
+          if (validAttrs[lkey] === true &&
+            (uriAttrs[lkey] !== true || uriValidator(value, isImage))) {
+            out(' ');
+            out(key);
+            out('="');
+            out(encodeEntities(value));
+            out('"');
+          }
+        });
+        out(unary ? '/>' : '>');
+      }
+    },
+    end: function(tag) {
+        tag = angular.lowercase(tag);
+        if (!ignore && validElements[tag] === true) {
+          out('</');
+          out(tag);
+          out('>');
+        }
+        if (tag == ignore) {
+          ignore = false;
+        }
+      },
+    chars: function(chars) {
+        if (!ignore) {
+          out(encodeEntities(chars));
+        }
+      }
+  };
+}
+
+
+// define ngSanitize module and register $sanitize service
+angular.module('ngSanitize', []).provider('$sanitize', $SanitizeProvider);
+
+/* global sanitizeText: false */
+
+/**
+ * @ngdoc filter
+ * @name linky
+ * @kind function
+ *
+ * @description
+ * Finds links in text input and turns them into html links. Supports http/https/ftp/mailto and
+ * plain email address links.
+ *
+ * Requires the {@link ngSanitize `ngSanitize`} module to be installed.
+ *
+ * @param {string} text Input text.
+ * @param {string} target Window (_blank|_self|_parent|_top) or named frame to open links in.
+ * @returns {string} Html-linkified text.
+ *
+ * @usage
+   <span ng-bind-html="linky_expression | linky"></span>
+ *
+ * @example
+   <example module="linkyExample" deps="angular-sanitize.js">
+     <file name="index.html">
+       <script>
+         angular.module('linkyExample', ['ngSanitize'])
+           .controller('ExampleController', ['$scope', function($scope) {
+             $scope.snippet =
+               'Pretty text with some links:\n'+
+               'http://angularjs.org/,\n'+
+               'mailto:us@somewhere.org,\n'+
+               'another@somewhere.org,\n'+
+               'and one more: ftp://127.0.0.1/.';
+             $scope.snippetWithTarget = 'http://angularjs.org/';
+           }]);
+       </script>
+       <div ng-controller="ExampleController">
+       Snippet: <textarea ng-model="snippet" cols="60" rows="3"></textarea>
+       <table>
+         <tr>
+           <td>Filter</td>
+           <td>Source</td>
+           <td>Rendered</td>
+         </tr>
+         <tr id="linky-filter">
+           <td>linky filter</td>
+           <td>
+             <pre>&lt;div ng-bind-html="snippet | linky"&gt;<br>&lt;/div&gt;</pre>
+           </td>
+           <td>
+             <div ng-bind-html="snippet | linky"></div>
+           </td>
+         </tr>
+         <tr id="linky-target">
+          <td>linky target</td>
+          <td>
+            <pre>&lt;div ng-bind-html="snippetWithTarget | linky:'_blank'"&gt;<br>&lt;/div&gt;</pre>
+          </td>
+          <td>
+            <div ng-bind-html="snippetWithTarget | linky:'_blank'"></div>
+          </td>
+         </tr>
+         <tr id="escaped-html">
+           <td>no filter</td>
+           <td><pre>&lt;div ng-bind="snippet"&gt;<br>&lt;/div&gt;</pre></td>
+           <td><div ng-bind="snippet"></div></td>
+         </tr>
+       </table>
+     </file>
+     <file name="protractor.js" type="protractor">
+       it('should linkify the snippet with urls', function() {
+         expect(element(by.id('linky-filter')).element(by.binding('snippet | linky')).getText()).
+             toBe('Pretty text with some links: http://angularjs.org/, us@somewhere.org, ' +
+                  'another@somewhere.org, and one more: ftp://127.0.0.1/.');
+         expect(element.all(by.css('#linky-filter a')).count()).toEqual(4);
+       });
+
+       it('should not linkify snippet without the linky filter', function() {
+         expect(element(by.id('escaped-html')).element(by.binding('snippet')).getText()).
+             toBe('Pretty text with some links: http://angularjs.org/, mailto:us@somewhere.org, ' +
+                  'another@somewhere.org, and one more: ftp://127.0.0.1/.');
+         expect(element.all(by.css('#escaped-html a')).count()).toEqual(0);
+       });
+
+       it('should update', function() {
+         element(by.model('snippet')).clear();
+         element(by.model('snippet')).sendKeys('new http://link.');
+         expect(element(by.id('linky-filter')).element(by.binding('snippet | linky')).getText()).
+             toBe('new http://link.');
+         expect(element.all(by.css('#linky-filter a')).count()).toEqual(1);
+         expect(element(by.id('escaped-html')).element(by.binding('snippet')).getText())
+             .toBe('new http://link.');
+       });
+
+       it('should work with the target property', function() {
+        expect(element(by.id('linky-target')).
+            element(by.binding("snippetWithTarget | linky:'_blank'")).getText()).
+            toBe('http://angularjs.org/');
+        expect(element(by.css('#linky-target a')).getAttribute('target')).toEqual('_blank');
+       });
+     </file>
+   </example>
+ */
+angular.module('ngSanitize').filter('linky', ['$sanitize', function($sanitize) {
+  var LINKY_URL_REGEXP =
+        /((ftp|https?):\/\/|(www\.)|(mailto:)?[A-Za-z0-9._%+-]+@)\S*[^\s.;,(){}<>"\u201d\u2019]/i,
+      MAILTO_REGEXP = /^mailto:/i;
+
+  return function(text, target) {
+    if (!text) return text;
+    var match;
+    var raw = text;
+    var html = [];
+    var url;
+    var i;
+    while ((match = raw.match(LINKY_URL_REGEXP))) {
+      // We can not end in these as they are sometimes found at the end of the sentence
+      url = match[0];
+      // if we did not match ftp/http/www/mailto then assume mailto
+      if (!match[2] && !match[4]) {
+        url = (match[3] ? 'http://' : 'mailto:') + url;
+      }
+      i = match.index;
+      addText(raw.substr(0, i));
+      addLink(url, match[0].replace(MAILTO_REGEXP, ''));
+      raw = raw.substring(i + match[0].length);
+    }
+    addText(raw);
+    return $sanitize(html.join(''));
+
+    function addText(text) {
+      if (!text) {
+        return;
+      }
+      html.push(sanitizeText(text));
+    }
+
+    function addLink(url, text) {
+      html.push('<a ');
+      if (angular.isDefined(target)) {
+        html.push('target="',
+                  target,
+                  '" ');
+      }
+      html.push('href="',
+                url.replace(/"/g, '&quot;'),
+                '">');
+      addText(text);
+      html.push('</a>');
+    }
+  };
+}]);
+
+
+})(window, window.angular);
+// Generated by CoffeeScript 1.8.0
 (function() {
-  angular.module('Tienda', ['ngRoute', 'ngResource']);
+  var __indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
+
+  angular.module('localytics.directives', []);
+
+  angular.module('localytics.directives').directive('chosen', [
+    '$timeout', function($timeout) {
+      var CHOSEN_OPTION_WHITELIST, NG_OPTIONS_REGEXP, isEmpty, snakeCase;
+      NG_OPTIONS_REGEXP = /^\s*(.*?)(?:\s+as\s+(.*?))?(?:\s+group\s+by\s+(.*))?\s+for\s+(?:([\$\w][\$\w]*)|(?:\(\s*([\$\w][\$\w]*)\s*,\s*([\$\w][\$\w]*)\s*\)))\s+in\s+(.*?)(?:\s+track\s+by\s+(.*?))?$/;
+      CHOSEN_OPTION_WHITELIST = ['noResultsText', 'allowSingleDeselect', 'disableSearchThreshold', 'disableSearch', 'enableSplitWordSearch', 'inheritSelectClasses', 'maxSelectedOptions', 'placeholderTextMultiple', 'placeholderTextSingle', 'searchContains', 'singleBackstrokeDelete', 'displayDisabledOptions', 'displaySelectedOptions', 'width'];
+      snakeCase = function(input) {
+        return input.replace(/[A-Z]/g, function($1) {
+          return "_" + ($1.toLowerCase());
+        });
+      };
+      isEmpty = function(value) {
+        var key;
+        if (angular.isArray(value)) {
+          return value.length === 0;
+        } else if (angular.isObject(value)) {
+          for (key in value) {
+            if (value.hasOwnProperty(key)) {
+              return false;
+            }
+          }
+        }
+        return true;
+      };
+      return {
+        restrict: 'A',
+        require: '?ngModel',
+        terminal: true,
+        link: function(scope, element, attr, ngModel) {
+          var chosen, defaultText, disableWithMessage, empty, initOrUpdate, match, options, origRender, removeEmptyMessage, startLoading, stopLoading, valuesExpr, viewWatch;
+          element.addClass('localytics-chosen');
+          options = scope.$eval(attr.chosen) || {};
+          angular.forEach(attr, function(value, key) {
+            if (__indexOf.call(CHOSEN_OPTION_WHITELIST, key) >= 0) {
+              return options[snakeCase(key)] = scope.$eval(value);
+            }
+          });
+          startLoading = function() {
+            return element.addClass('loading').attr('disabled', true).trigger('chosen:updated');
+          };
+          stopLoading = function() {
+            return element.removeClass('loading').attr('disabled', false).trigger('chosen:updated');
+          };
+          chosen = null;
+          defaultText = null;
+          empty = false;
+          initOrUpdate = function() {
+            if (chosen) {
+              return element.trigger('chosen:updated');
+            } else {
+              chosen = element.chosen(options).data('chosen');
+              return defaultText = chosen.default_text;
+            }
+          };
+          removeEmptyMessage = function() {
+            empty = false;
+            return element.attr('data-placeholder', defaultText);
+          };
+          disableWithMessage = function() {
+            empty = true;
+            return element.attr('data-placeholder', chosen.results_none_found).attr('disabled', true).trigger('chosen:updated');
+          };
+          if (ngModel) {
+            origRender = ngModel.$render;
+            ngModel.$render = function() {
+              origRender();
+              return initOrUpdate();
+            };
+            if (attr.multiple) {
+              viewWatch = function() {
+                return ngModel.$viewValue;
+              };
+              scope.$watch(viewWatch, ngModel.$render, true);
+            }
+          } else {
+            initOrUpdate();
+          }
+          attr.$observe('disabled', function() {
+            return element.trigger('chosen:updated');
+          });
+          if (attr.ngOptions && ngModel) {
+            match = attr.ngOptions.match(NG_OPTIONS_REGEXP);
+            valuesExpr = match[7];
+            scope.$watchCollection(valuesExpr, function(newVal, oldVal) {
+              var timer;
+              return timer = $timeout(function() {
+                if (angular.isUndefined(newVal)) {
+                  return startLoading();
+                } else {
+                  if (empty) {
+                    removeEmptyMessage();
+                  }
+                  stopLoading();
+                  if (isEmpty(newVal)) {
+                    return disableWithMessage();
+                  }
+                }
+              });
+            });
+            return scope.$on('$destroy', function(event) {
+              if (typeof timer !== "undefined" && timer !== null) {
+                return $timeout.cancel(timer);
+              }
+            });
+          }
+        }
+      };
+    }
+  ]);
+
+}).call(this);
+/*!
+ * angular-ui-mask
+ * https://github.com/angular-ui/ui-mask
+ * Version: 1.4.5 - 2015-09-04T09:04:37.010Z
+ * License: MIT
+ */
+
+
+
+(function () { 
+'use strict';
+/*
+ Attaches input mask onto input element
+ */
+angular.module('ui.mask', [])
+        .value('uiMaskConfig', {
+            maskDefinitions: {
+                '9': /\d/,
+                'A': /[a-zA-Z]/,
+                '*': /[a-zA-Z0-9]/
+            },
+            clearOnBlur: true,
+            eventsToHandle: ['input', 'keyup', 'click', 'focus']
+        })
+        .directive('uiMask', ['uiMaskConfig', function(maskConfig) {
+                function isFocused (elem) {
+                  return elem === document.activeElement && (!document.hasFocus || document.hasFocus()) && !!(elem.type || elem.href || ~elem.tabIndex);
+                }
+
+                return {
+                    priority: 100,
+                    require: 'ngModel',
+                    restrict: 'A',
+                    compile: function uiMaskCompilingFunction() {
+                        var options = maskConfig;
+
+                        return function uiMaskLinkingFunction(scope, iElement, iAttrs, controller) {
+                            var maskProcessed = false, eventsBound = false,
+                                    maskCaretMap, maskPatterns, maskPlaceholder, maskComponents,
+                                    // Minimum required length of the value to be considered valid
+                                    minRequiredLength,
+                                    value, valueMasked, isValid,
+                                    // Vars for initializing/uninitializing
+                                    originalPlaceholder = iAttrs.placeholder,
+                                    originalMaxlength = iAttrs.maxlength,
+                                    // Vars used exclusively in eventHandler()
+                                    oldValue, oldValueUnmasked, oldCaretPosition, oldSelectionLength;
+
+                            function initialize(maskAttr) {
+                                if (!angular.isDefined(maskAttr)) {
+                                    return uninitialize();
+                                }
+                                processRawMask(maskAttr);
+                                if (!maskProcessed) {
+                                    return uninitialize();
+                                }
+                                initializeElement();
+                                bindEventListeners();
+                                return true;
+                            }
+
+                            function initPlaceholder(placeholderAttr) {
+                                if ( ! placeholderAttr) {
+                                    return;
+                                }
+
+                                maskPlaceholder = placeholderAttr;
+
+                                // If the mask is processed, then we need to update the value
+                                if (maskProcessed) {
+                                    iElement.val(maskValue(unmaskValue(iElement.val())));
+                                }
+                            }
+                            var modelViewValue = false;
+                            iAttrs.$observe('modelViewValue', function(val) {
+                                if (val === 'true') {
+                                    modelViewValue = true;
+                                }
+                            });
+
+                            function formatter(fromModelValue) {
+                                if (!maskProcessed) {
+                                    return fromModelValue;
+                                }
+                                value = unmaskValue(fromModelValue || '');
+                                isValid = validateValue(value);
+                                controller.$setValidity('mask', isValid);
+                                return isValid && value.length ? maskValue(value) : undefined;
+                            }
+
+                            function parser(fromViewValue) {
+                                if (!maskProcessed) {
+                                    return fromViewValue;
+                                }
+                                value = unmaskValue(fromViewValue || '');
+                                isValid = validateValue(value);
+                                // We have to set viewValue manually as the reformatting of the input
+                                // value performed by eventHandler() doesn't happen until after
+                                // this parser is called, which causes what the user sees in the input
+                                // to be out-of-sync with what the controller's $viewValue is set to.
+                                controller.$viewValue = value.length ? maskValue(value) : '';
+                                controller.$setValidity('mask', isValid);
+                                if (value === '' && iAttrs.required) {
+                                    controller.$setValidity('required', !controller.$error.required);
+                                }
+                                if (isValid) {
+                                    return modelViewValue ? controller.$viewValue : value;
+                                } else {
+                                    return undefined;
+                                }
+                            }
+
+                            var linkOptions = {};
+
+                            if (iAttrs.uiOptions) {
+                                linkOptions = scope.$eval('[' + iAttrs.uiOptions + ']');
+                                if (angular.isObject(linkOptions[0])) {
+                                    // we can't use angular.copy nor angular.extend, they lack the power to do a deep merge
+                                    linkOptions = (function(original, current) {
+                                        for (var i in original) {
+                                            if (Object.prototype.hasOwnProperty.call(original, i)) {
+                                                if (current[i] === undefined) {
+                                                    current[i] = angular.copy(original[i]);
+                                                } else {
+                                                    if (angular.isObject(current[i])) {
+                                                        angular.extend(current[i], original[i]);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        return current;
+                                    })(options, linkOptions[0]);
+                                }
+                            } else {
+                                linkOptions = options;
+                            }
+
+                            iAttrs.$observe('uiMask', initialize);
+                            if (angular.isDefined(iAttrs.uiMaskPlaceholder)) {
+                                iAttrs.$observe('uiMaskPlaceholder', initPlaceholder);
+                            }
+                            else {
+                                iAttrs.$observe('placeholder', initPlaceholder);
+                            }
+                            controller.$formatters.push(formatter);
+                            controller.$parsers.push(parser);
+
+                            function uninitialize() {
+                                maskProcessed = false;
+                                unbindEventListeners();
+
+                                if (angular.isDefined(originalPlaceholder)) {
+                                    iElement.attr('placeholder', originalPlaceholder);
+                                } else {
+                                    iElement.removeAttr('placeholder');
+                                }
+
+                                if (angular.isDefined(originalMaxlength)) {
+                                    iElement.attr('maxlength', originalMaxlength);
+                                } else {
+                                    iElement.removeAttr('maxlength');
+                                }
+
+                                iElement.val(controller.$modelValue);
+                                controller.$viewValue = controller.$modelValue;
+                                return false;
+                            }
+
+                            function initializeElement() {
+                                value = oldValueUnmasked = unmaskValue(controller.$modelValue || '');
+                                valueMasked = oldValue = maskValue(value);
+                                isValid = validateValue(value);
+                                if (iAttrs.maxlength) { // Double maxlength to allow pasting new val at end of mask
+                                    iElement.attr('maxlength', maskCaretMap[maskCaretMap.length - 1] * 2);
+                                }
+                                if ( ! originalPlaceholder) {
+                                    iElement.attr('placeholder', maskPlaceholder);
+                                }
+                                var viewValue = controller.$modelValue;
+                                var idx = controller.$formatters.length;
+                                while(idx--) {
+                                    viewValue = controller.$formatters[idx](viewValue);
+                                }
+                                controller.$viewValue = viewValue || '';
+                                controller.$render();
+                                // Not using $setViewValue so we don't clobber the model value and dirty the form
+                                // without any kind of user interaction.
+                            }
+
+                            function bindEventListeners() {
+                                if (eventsBound) {
+                                    return;
+                                }
+                                iElement.bind('blur', blurHandler);
+                                iElement.bind('mousedown mouseup', mouseDownUpHandler);
+                                iElement.bind(linkOptions.eventsToHandle.join(' '), eventHandler);
+                                iElement.bind('paste', onPasteHandler);
+                                eventsBound = true;
+                            }
+
+                            function unbindEventListeners() {
+                                if (!eventsBound) {
+                                    return;
+                                }
+                                iElement.unbind('blur', blurHandler);
+                                iElement.unbind('mousedown', mouseDownUpHandler);
+                                iElement.unbind('mouseup', mouseDownUpHandler);
+                                iElement.unbind('input', eventHandler);
+                                iElement.unbind('keyup', eventHandler);
+                                iElement.unbind('click', eventHandler);
+                                iElement.unbind('focus', eventHandler);
+                                iElement.unbind('paste', onPasteHandler);
+                                eventsBound = false;
+                            }
+
+                            function validateValue(value) {
+                                // Zero-length value validity is ngRequired's determination
+                                return value.length ? value.length >= minRequiredLength : true;
+                            }
+
+                            function unmaskValue(value) {
+                                var valueUnmasked = '',
+                                        maskPatternsCopy = maskPatterns.slice();
+                                // Preprocess by stripping mask components from value
+                                value = value.toString();
+                                angular.forEach(maskComponents, function(component) {
+                                    value = value.replace(component, '');
+                                });
+                                angular.forEach(value.split(''), function(chr) {
+                                    if (maskPatternsCopy.length && maskPatternsCopy[0].test(chr)) {
+                                        valueUnmasked += chr;
+                                        maskPatternsCopy.shift();
+                                    }
+                                });
+                                return valueUnmasked;
+                            }
+
+                            function maskValue(unmaskedValue) {
+                                var valueMasked = '',
+                                        maskCaretMapCopy = maskCaretMap.slice();
+
+                                angular.forEach(maskPlaceholder.split(''), function(chr, i) {
+                                    if (unmaskedValue.length && i === maskCaretMapCopy[0]) {
+                                        valueMasked += unmaskedValue.charAt(0) || '_';
+                                        unmaskedValue = unmaskedValue.substr(1);
+                                        maskCaretMapCopy.shift();
+                                    }
+                                    else {
+                                        valueMasked += chr;
+                                    }
+                                });
+                                return valueMasked;
+                            }
+
+                            function getPlaceholderChar(i) {
+                                var placeholder = angular.isDefined(iAttrs.uiMaskPlaceholder) ? iAttrs.uiMaskPlaceholder : iAttrs.placeholder;
+
+                                if (typeof placeholder !== 'undefined' && placeholder[i]) {
+                                    return placeholder[i];
+                                } else {
+                                    return '_';
+                                }
+                            }
+
+                            // Generate array of mask components that will be stripped from a masked value
+                            // before processing to prevent mask components from being added to the unmasked value.
+                            // E.g., a mask pattern of '+7 9999' won't have the 7 bleed into the unmasked value.
+                            // If a maskable char is followed by a mask char and has a mask
+                            // char behind it, we'll split it into it's own component so if
+                            // a user is aggressively deleting in the input and a char ahead
+                            // of the maskable char gets deleted, we'll still be able to strip
+                            // it in the unmaskValue() preprocessing.
+                            function getMaskComponents() {
+                                return maskPlaceholder.replace(/[_]+/g, '_').replace(/([^_]+)([a-zA-Z0-9])([^_])/g, '$1$2_$3').split('_');
+                            }
+
+                            function processRawMask(mask) {
+                                var characterCount = 0;
+
+                                maskCaretMap = [];
+                                maskPatterns = [];
+                                maskPlaceholder = '';
+
+                                if (typeof mask === 'string') {
+                                    minRequiredLength = 0;
+
+                                    var isOptional = false,
+                                            numberOfOptionalCharacters = 0,
+                                            splitMask = mask.split('');
+
+                                    angular.forEach(splitMask, function(chr, i) {
+                                        if (linkOptions.maskDefinitions[chr]) {
+
+                                            maskCaretMap.push(characterCount);
+
+                                            maskPlaceholder += getPlaceholderChar(i - numberOfOptionalCharacters);
+                                            maskPatterns.push(linkOptions.maskDefinitions[chr]);
+
+                                            characterCount++;
+                                            if (!isOptional) {
+                                                minRequiredLength++;
+                                            }
+                                        }
+                                        else if (chr === '?') {
+                                            isOptional = true;
+                                            numberOfOptionalCharacters++;
+                                        }
+                                        else {
+                                            maskPlaceholder += chr;
+                                            characterCount++;
+                                        }
+                                    });
+                                }
+                                // Caret position immediately following last position is valid.
+                                maskCaretMap.push(maskCaretMap.slice().pop() + 1);
+
+                                maskComponents = getMaskComponents();
+                                maskProcessed = maskCaretMap.length > 1 ? true : false;
+                            }
+
+                            function blurHandler() {
+                                if (linkOptions.clearOnBlur) {
+                                    oldCaretPosition = 0;
+                                    oldSelectionLength = 0;
+                                    if (!isValid || value.length === 0) {
+                                        valueMasked = '';
+                                        iElement.val('');
+                                        scope.$apply(function() {
+                                            controller.$setViewValue('');
+                                        });
+                                    }
+                                }
+                            }
+
+                            function mouseDownUpHandler(e) {
+                                if (e.type === 'mousedown') {
+                                    iElement.bind('mouseout', mouseoutHandler);
+                                } else {
+                                    iElement.unbind('mouseout', mouseoutHandler);
+                                }
+                            }
+
+                            iElement.bind('mousedown mouseup', mouseDownUpHandler);
+
+                            function mouseoutHandler() {
+                                /*jshint validthis: true */
+                                oldSelectionLength = getSelectionLength(this);
+                                iElement.unbind('mouseout', mouseoutHandler);
+                            }
+
+                            function onPasteHandler() {
+                                /*jshint validthis: true */
+                                setCaretPosition(this, iElement.val().length);
+                            }
+
+                            function eventHandler(e) {
+                                /*jshint validthis: true */
+                                e = e || {};
+                                // Allows more efficient minification
+                                var eventWhich = e.which,
+                                        eventType = e.type;
+
+                                // Prevent shift and ctrl from mucking with old values
+                                if (eventWhich === 16 || eventWhich === 91) {
+                                    return;
+                                }
+
+                                var val = iElement.val(),
+                                        valOld = oldValue,
+                                        valMasked,
+                                        valUnmasked = unmaskValue(val),
+                                        valUnmaskedOld = oldValueUnmasked,
+                                        caretPos = getCaretPosition(this) || 0,
+                                        caretPosOld = oldCaretPosition || 0,
+                                        caretPosDelta = caretPos - caretPosOld,
+                                        caretPosMin = maskCaretMap[0],
+                                        caretPosMax = maskCaretMap[valUnmasked.length] || maskCaretMap.slice().shift(),
+                                        selectionLenOld = oldSelectionLength || 0,
+                                        isSelected = getSelectionLength(this) > 0,
+                                        wasSelected = selectionLenOld > 0,
+                                        // Case: Typing a character to overwrite a selection
+                                        isAddition = (val.length > valOld.length) || (selectionLenOld && val.length > valOld.length - selectionLenOld),
+                                        // Case: Delete and backspace behave identically on a selection
+                                        isDeletion = (val.length < valOld.length) || (selectionLenOld && val.length === valOld.length - selectionLenOld),
+                                        isSelection = (eventWhich >= 37 && eventWhich <= 40) && e.shiftKey, // Arrow key codes
+
+                                        isKeyLeftArrow = eventWhich === 37,
+                                        // Necessary due to "input" event not providing a key code
+                                        isKeyBackspace = eventWhich === 8 || (eventType !== 'keyup' && isDeletion && (caretPosDelta === -1)),
+                                        isKeyDelete = eventWhich === 46 || (eventType !== 'keyup' && isDeletion && (caretPosDelta === 0) && !wasSelected),
+                                        // Handles cases where caret is moved and placed in front of invalid maskCaretMap position. Logic below
+                                        // ensures that, on click or leftward caret placement, caret is moved leftward until directly right of
+                                        // non-mask character. Also applied to click since users are (arguably) more likely to backspace
+                                        // a character when clicking within a filled input.
+                                        caretBumpBack = (isKeyLeftArrow || isKeyBackspace || eventType === 'click') && caretPos > caretPosMin;
+
+                                oldSelectionLength = getSelectionLength(this);
+
+                                // These events don't require any action
+                                if (isSelection || (isSelected && (eventType === 'click' || eventType === 'keyup'))) {
+                                    return;
+                                }
+
+                                // Value Handling
+                                // ==============
+
+                                // User attempted to delete but raw value was unaffected--correct this grievous offense
+                                if ((eventType === 'input') && isDeletion && !wasSelected && valUnmasked === valUnmaskedOld) {
+                                    while (isKeyBackspace && caretPos > caretPosMin && !isValidCaretPosition(caretPos)) {
+                                        caretPos--;
+                                    }
+                                    while (isKeyDelete && caretPos < caretPosMax && maskCaretMap.indexOf(caretPos) === -1) {
+                                        caretPos++;
+                                    }
+                                    var charIndex = maskCaretMap.indexOf(caretPos);
+                                    // Strip out non-mask character that user would have deleted if mask hadn't been in the way.
+                                    valUnmasked = valUnmasked.substring(0, charIndex) + valUnmasked.substring(charIndex + 1);
+                                }
+
+                                // Update values
+                                valMasked = maskValue(valUnmasked);
+
+                                oldValue = valMasked;
+                                oldValueUnmasked = valUnmasked;
+                                iElement.val(valMasked);
+                                controller.$setViewValue(valUnmasked);
+
+                                // Caret Repositioning
+                                // ===================
+
+                                // Ensure that typing always places caret ahead of typed character in cases where the first char of
+                                // the input is a mask char and the caret is placed at the 0 position.
+                                if (isAddition && (caretPos <= caretPosMin)) {
+                                    caretPos = caretPosMin + 1;
+                                }
+
+                                if (caretBumpBack) {
+                                    caretPos--;
+                                }
+
+                                // Make sure caret is within min and max position limits
+                                caretPos = caretPos > caretPosMax ? caretPosMax : caretPos < caretPosMin ? caretPosMin : caretPos;
+
+                                // Scoot the caret back or forth until it's in a non-mask position and within min/max position limits
+                                while (!isValidCaretPosition(caretPos) && caretPos > caretPosMin && caretPos < caretPosMax) {
+                                    caretPos += caretBumpBack ? -1 : 1;
+                                }
+
+                                if ((caretBumpBack && caretPos < caretPosMax) || (isAddition && !isValidCaretPosition(caretPosOld))) {
+                                    caretPos++;
+                                }
+                                oldCaretPosition = caretPos;
+                                setCaretPosition(this, caretPos);
+                            }
+
+                            function isValidCaretPosition(pos) {
+                                return maskCaretMap.indexOf(pos) > -1;
+                            }
+
+                            function getCaretPosition(input) {
+                                if (!input)
+                                    return 0;
+                                if (input.selectionStart !== undefined) {
+                                    return input.selectionStart;
+                                } else if (document.selection) {
+                                    if (isFocused(iElement[0])) {
+                                        // Curse you IE
+                                        input.focus();
+                                        var selection = document.selection.createRange();
+                                        selection.moveStart('character', input.value ? -input.value.length : 0);
+                                        return selection.text.length;
+                                    }
+                                }
+                                return 0;
+                            }
+
+                            function setCaretPosition(input, pos) {
+                                if (!input)
+                                    return 0;
+                                if (input.offsetWidth === 0 || input.offsetHeight === 0) {
+                                    return; // Input's hidden
+                                }
+                                if (input.setSelectionRange) {
+                                    if (isFocused(iElement[0])) {
+                                        input.focus();
+                                        input.setSelectionRange(pos, pos);
+                                    }
+                                }
+                                else if (input.createTextRange) {
+                                    // Curse you IE
+                                    var range = input.createTextRange();
+                                    range.collapse(true);
+                                    range.moveEnd('character', pos);
+                                    range.moveStart('character', pos);
+                                    range.select();
+                                }
+                            }
+
+                            function getSelectionLength(input) {
+                                if (!input)
+                                    return 0;
+                                if (input.selectionStart !== undefined) {
+                                    return (input.selectionEnd - input.selectionStart);
+                                }
+                                if (document.selection) {
+                                    return (document.selection.createRange().text.length);
+                                }
+                                return 0;
+                            }
+
+                            // https://developer.mozilla.org/en-US/docs/JavaScript/Reference/Global_Objects/Array/indexOf
+                            if (!Array.prototype.indexOf) {
+                                Array.prototype.indexOf = function(searchElement /*, fromIndex */) {
+                                    if (this === null) {
+                                        throw new TypeError();
+                                    }
+                                    var t = Object(this);
+                                    var len = t.length >>> 0;
+                                    if (len === 0) {
+                                        return -1;
+                                    }
+                                    var n = 0;
+                                    if (arguments.length > 1) {
+                                        n = Number(arguments[1]);
+                                        if (n !== n) { // shortcut for verifying if it's NaN
+                                            n = 0;
+                                        } else if (n !== 0 && n !== Infinity && n !== -Infinity) {
+                                            n = (n > 0 || -1) * Math.floor(Math.abs(n));
+                                        }
+                                    }
+                                    if (n >= len) {
+                                        return -1;
+                                    }
+                                    var k = n >= 0 ? n : Math.max(len - Math.abs(n), 0);
+                                    for (; k < len; k++) {
+                                        if (k in t && t[k] === searchElement) {
+                                            return k;
+                                        }
+                                    }
+                                    return -1;
+                                };
+                            }
+
+                        };
+                    }
+                };
+            }
+        ]);
+
+}());
+/*
+ * angular-marked
+ * (c) 2014 J. Harshbarger
+ * Licensed MIT
+ */
+
+/* jshint undef: true, unused: true */
+/* global angular:true */
+/* global marked:true */
+/* global module */
+/* global require */
+
+
+(function () {
+  'use strict';
+
+  /**
+   * @ngdoc overview
+   * @name index
+   *
+   * @description
+   * AngularJS Markdown using [marked](https://github.com/chjj/marked).
+   *
+   * ## Why?
+   *
+   * I wanted to use [marked](https://github.com/chjj/marked) instead of [showdown](https://github.com/coreyti/showdown) as used in [angular-markdown-directive](https://github.com/btford/angular-markdown-directive) as well as expose the option to globally set defaults.
+   *
+   * ## How?
+   *
+   * - {@link hc.marked.directive:marked As a directive}
+   * - {@link hc.marked.service:marked As a service}
+   * - {@link hc.marked.service:markedProvider Set default options}
+   *
+   * @example
+
+      Convert markdown to html at run time.  For example:
+
+      <example module="hc.marked">
+        <file name=".html">
+          <form ng-controller="MainController">
+            Markdown:<br />
+            <textarea ng-model="my_markdown" cols="60" rows="5" class="span8" /><br />
+            Output:<br />
+            <div marked="my_markdown" />
+          </form>
+        </file>
+        <file  name=".js">
+          function MainController($scope) {
+            $scope.my_markdown = "*This* **is** [markdown](https://daringfireball.net/projects/markdown/)";
+          }
+        </file>
+      </example>
+
+    *
+    */
+
+    /**
+     * @ngdoc overview
+     * @name hc.marked
+     * @description # angular-marked (core module)
+       # Installation
+      First include angular-marked.js in your HTML:
+
+      ```js
+        <script src="angular-marked.js">
+      ```
+
+      Then load the module in your application by adding it as a dependency:
+
+      ```js
+      angular.module('yourApp', ['hc.marked']);
+      ```
+
+      With that you're ready to get started!
+     */
+
+  if (typeof module !== 'undefined' && typeof exports === 'object') {
+    module.exports = 'hc.marked';
+  }
+
+  angular.module('hc.marked', [])
+
+    /**
+    * @ngdoc service
+    * @name hc.marked.service:marked
+    * @requires $window
+    * @description
+    * A reference to the [marked](https://github.com/chjj/marked) parser.
+    *
+    * @example
+    <example module="hc.marked">
+      <file name=".html">
+        <div ng-controller="MainController">
+          html: {{html}}
+        </div>
+      </file>
+      <file  name=".js">
+        function MainController($scope, marked) {
+          $scope.html = marked('#TEST');
+        }
+      </file>
+    </example>
+   **/
+
+   /**
+   * @ngdoc service
+   * @name hc.marked.service:markedProvider
+   * @description
+   * Use `markedProvider` to change the default behavior of the {@link hc.marked.service:marked marked} service.
+   *
+   * @example
+
+    ## Example using [google-code-prettify syntax highlighter](https://code.google.com/p/google-code-prettify/) (must include google-code-prettify.js script).  Also works with [highlight.js Javascript syntax highlighter](http://highlightjs.org/).
+
+    <example module="myApp">
+    <file name=".js">
+    angular.module('myApp', ['hc.marked'])
+      .config(['markedProvider', function(markedProvider) {
+        markedProvider.setOptions({
+          gfm: true,
+          tables: true,
+          highlight: function (code) {
+            return prettyPrintOne(code);
+          }
+        });
+      }]);
+    </file>
+    <file name=".html">
+      <marked>
+      ```js
+      angular.module('myApp', ['hc.marked'])
+        .config(['markedProvider', function(markedProvider) {
+          markedProvider.setOptions({
+            gfm: true,
+            tables: true,
+            highlight: function (code) {
+              return prettyPrintOne(code);
+            }
+          });
+        }]);
+      ```
+      </marked>
+    </file>
+    </example>
+  **/
+
+  .provider('marked', function () {
+
+    var self = this;
+
+    /**
+     * @ngdoc method
+     * @name markedProvider#setOptions
+     * @methodOf hc.marked.service:markedProvider
+     *
+     * @param {object} opts Default options for [marked](https://github.com/chjj/marked#options-1).
+     */
+
+    self.setRenderer = function (opts) {
+      this.renderer = opts;
+    };
+
+    self.setOptions = function(opts) {  // Store options for later
+      this.defaults = opts;
+    };
+
+    self.$get = ['$window', '$log', function ($window, $log) {
+
+      var m =  (function() {
+
+        if (typeof module !== 'undefined' && typeof exports === 'object') {
+          return require('marked');
+        } else {
+          return $window.marked || marked;
+        }
+
+      })();
+
+      if (angular.isUndefined(m)) {
+        $log.error('angular-marked Error: marked not loaded.  See installation instructions.');
+        return;
+      }
+
+      // override rendered markdown html
+      // with custom definitions if defined
+      if (self.renderer) {
+        var r = new m.Renderer();
+        var o = Object.keys(self.renderer),
+            l = o.length;
+
+        while (l--) {
+          r[o[l]] = self.renderer[o[l]];
+        }
+
+        // add the new renderer to the options if need be
+        self.defaults = self.defaults || {};
+        self.defaults.renderer = r;
+      }
+
+      m.setOptions(self.defaults);
+
+      return m;
+    }];
+
+  })
+
+  // TODO: filter tests */
+  //app.filter('marked', ['marked', function(marked) {
+  //  return marked;
+  //}]);
+
+  /**
+   * @ngdoc directive
+   * @name hc.marked.directive:marked
+   * @restrict AE
+   * @element any
+   *
+   * @description
+   * Compiles source test into HTML.
+   *
+   * @param {expression} marked The source text to be compiled.  If blank uses content as the source.
+   * @param {expression=} opts Hash of options that override defaults.
+   *
+   * @example
+
+     ## A simple block of text
+
+      <example module="hc.marked">
+        <file name="exampleA.html">
+         * <marked>
+         * ### Markdown directive
+         *
+         * *It works!*
+         *
+         * *This* **is** [markdown](https://daringfireball.net/projects/markdown/) in the view.
+         * </marked>
+        </file>
+      </example>
+
+     ## Bind to a scope variable
+
+      <example module="hc.marked">
+        <file name="exampleB.html">
+          <form ng-controller="MainController">
+            Markdown:<br />
+            <textarea ng-model="my_markdown" class="span8" cols="60" rows="5"></textarea><br />
+            Output:<br />
+            <blockquote marked="my_markdown"></blockquote>
+          </form>
+        </file>
+        <file  name="exampleB.js">
+          * function MainController($scope) {
+          *   $scope.my_markdown = '*This* **is** [markdown](https://daringfireball.net/projects/markdown/)';
+          *   $scope.my_markdown += ' in a scope variable';
+          * }
+        </file>
+      </example>
+
+      ## Include a markdown file:
+
+       <example module="hc.marked">
+         <file name="exampleC.html">
+           <div marked src="'include.html'" />
+         </file>
+         * <file name="include.html">
+         * *This* **is** [markdown](https://daringfireball.net/projects/markdown/) in a include file.
+         * </file>
+       </example>
+   */
+
+  .directive('marked', ['marked', '$templateRequest', function (marked, $templateRequest) {
+    return {
+      restrict: 'AE',
+      replace: true,
+      scope: {
+        opts: '=',
+        marked: '=',
+        src: '='
+      },
+      link: function (scope, element, attrs) {
+        set(scope.marked || element.text() || '');
+
+        if (attrs.marked) {
+          scope.$watch('marked', set);
+        }
+
+        if (attrs.src) {
+          scope.$watch('src', function(src) {
+            $templateRequest(src, true).then(function(response) {
+              set(response);
+            });
+          });
+        }
+
+        function unindent(text) {
+          if (!text) return text;
+
+          var lines  = text
+            .replace(/\t/g, '  ')
+            .split(/\r?\n/);
+
+          var i, l, min = null, line, len = lines.length;
+          for (i = 0; i < len; i++) {
+            line = lines[i];
+            l = line.match(/^(\s*)/)[0].length;
+            if (l === line.length) { continue; }
+            min = (l < min || min === null) ? l : min;
+          }
+
+          if (min !== null && min > 0) {
+            for (i = 0; i < len; i++) {
+              lines[i] = lines[i].substr(min);
+            }
+          }
+          return lines.join('\n');
+        }
+
+        function set(text) {
+          text = unindent(text || '');
+          element.html(marked(text, scope.opts || null));
+        }
+
+      }
+    };
+  }]);
+
+}());
+(function() {
+  angular.module('Tienda', ['ngRoute', 'ngResource', 'ngSanitize', 'localytics.directives', 'ui.mask', 'hc.marked']);
 
 }).call(this);
 (function() {
-  angular.module('Tienda').factory('Organizacion', function($resource) {
-    return $resource("/organizaciones/:id", {
-      id: "@id"
-    }, {
-      update: {
-        method: "PUT"
+  angular.module('Tienda').controller('ComprasCreateController', function(Compra, Producto, Organizacion, $scope, $location) {
+    $scope.es_nuevo = true;
+    $scope.compra = new Compra();
+    $scope.compra.fecha = new Date();
+    $scope.organizaciones = Organizacion.query();
+    $scope.productos = Producto.query();
+    $scope.no_hay_items = true;
+    $scope.compra.operacionitems = [];
+    $scope.focus_en_buscador = false;
+    $scope.compra.total = 0.00;
+    $scope.cant_prod_en_compra = {};
+    $scope.precios = Producto.precios();
+    $scope.agregar_item = function(producto) {
+      var nuevo_item, producto_en_lista, puc;
+      if ($scope.precios[producto.id] === void 0) {
+        puc = 0;
+      } else {
+        puc = $scope.precios[producto.id].puc;
+      }
+      producto_en_lista = false;
+      angular.forEach($scope.compra.operacionitems, function(v, i) {
+        var importe;
+        importe = v.cantidad * v.precio;
+        $scope.compra.total += importe;
+        if (v.producto.id === producto.id) {
+          v.cantidad += 1;
+          $scope.cant_prod_en_compra[producto.id] = v.cantidad;
+          return producto_en_lista = true;
+        }
+      });
+      if (producto_en_lista === false) {
+        nuevo_item = {
+          "producto": {
+            "id": producto.id,
+            "nombre": producto.nombre
+          },
+          "cantidad": 1,
+          "precio": puc
+        };
+        $scope.compra.operacionitems.push(nuevo_item);
+        $scope.cant_prod_en_compra[producto.id] = 1;
+        $scope.compra.total += parseFloat(nuevo_item.precio);
+      }
+      $scope.no_hay_items = false;
+      if ($scope.compra.operacionitems.length === 1) {
+        return $scope.compra.organizacion_id = producto.organizacion_id;
+      }
+    };
+    $scope.restar_item = function(producto) {
+      angular.forEach($scope.compra.operacionitems, function(v, i) {
+        if (v.producto.id === producto.id) {
+          if (v.cantidad !== 1) {
+            v.cantidad -= 1;
+            $scope.cant_prod_en_compra[producto.id] = v.cantidad;
+            return $scope.compra.total -= parseFloat(v.precio);
+          } else {
+            $scope.compra.total -= parseFloat(v.precio);
+            $scope.compra.operacionitems.splice(i, 1);
+            return $scope.cant_prod_en_compra[producto.id] = 0;
+          }
+        }
+      });
+      if ($scope.compra.operacionitems.length === 0) {
+        return $scope.no_hay_items = true;
+      }
+    };
+    $scope.$on('$locationChangeStart', function(event) {
+      var respuesta;
+      if (!$scope.no_hay_items) {
+        respuesta = confirm("Desea descartar la orden de compra?");
+        if (!respuesta) {
+          return event.preventDefault();
+        }
       }
     });
+    $scope.editar_precio = function() {
+      $scope.compra.total = 0;
+      return angular.forEach($scope.compra.operacionitems, function(v, i) {
+        var importe;
+        importe = v.cantidad * v.precio;
+        return $scope.compra.total += importe;
+      });
+    };
+    $scope.confirmar_compra = function() {
+      return $scope.compra.$save().then(function() {
+        $scope.no_hay_items = true;
+        return $location.path('/compras');
+      })["catch"](function(err) {
+        return console.log(err);
+      });
+    };
+    return $scope.elegir_otro = function() {
+      $scope.search = '';
+      return $('#buscador').focus();
+    };
+  });
+
+}).call(this);
+(function() {
+  angular.module('Tienda').controller('ComprasIndexController', function(Compra, Producto, $scope) {
+    Compra.query().$promise.then(function(data) {
+      angular.forEach(data, function(compra) {
+        return compra.idsearch = '.' + compra.id;
+      });
+      return $scope.compras = data;
+    });
+    $scope.pre_borrar = function(objeto_a_borrar) {
+      return $scope.objeto_a_borrar = objeto_a_borrar;
+    };
+    return $scope.borrar = function() {
+      return $scope.objeto_a_borrar.$remove().then(function() {
+        return $scope.compras = Compra.query();
+      });
+    };
+  });
+
+}).call(this);
+(function() {
+  angular.module('Tienda').controller('ComprasUpdateController', function(Compra, Producto, $scope, $location, $routeParams) {
+    var actualizar_stock_compras;
+    $scope.es_nuevo = false;
+    Compra.get({
+      id: $routeParams.id
+    }).$promise.then(function(data) {
+      $scope.compra = data;
+      $scope.compra.fecha = new Date();
+      $scope.productos = Producto.query();
+      $scope.no_hay_items = false;
+      $scope.compra.total = parseFloat($scope.compra.total);
+      $scope.cant_prod_en_compra = {};
+      $scope.organizaciones = [data.organizacion];
+      actualizar_stock_compras();
+      return $scope.precios = Producto.precios();
+    })["catch"](function(err) {
+      return alert(err);
+    });
+    actualizar_stock_compras = function() {
+      return angular.forEach($scope.compra.operacionitems, function(v, i) {
+        return $scope.cant_prod_en_compra[v.producto.id] = v.cantidad;
+      });
+    };
+    $scope.agregar_item = function(producto) {
+      var nuevo_item, producto_en_lista, puc;
+      producto_en_lista = false;
+      if ($scope.precios[producto.id] === void 0) {
+        puc = 0;
+      } else {
+        puc = $scope.precios[producto.id].puc;
+      }
+      angular.forEach($scope.compra.operacionitems, function(v, i) {
+        if (v.producto.id === producto.id) {
+          v.cantidad += 1;
+          producto_en_lista = true;
+          $scope.compra.total += parseFloat(v.precio);
+          v["_destroy"] = false;
+          return $scope.cant_prod_en_compra[producto.id];
+        }
+      });
+      if (producto_en_lista === false) {
+        nuevo_item = {
+          "producto": {
+            "id": producto.id,
+            "nombre": producto.nombre
+          },
+          "cantidad": 1,
+          "precio": puc
+        };
+        $scope.compra.operacionitems.push(nuevo_item);
+        $scope.compra.total += nuevo_item.precio;
+        $scope.cant_prod_en_compra[producto.id] = 1;
+      }
+      return $scope.no_hay_items = false;
+    };
+    $scope.restar_item = function(producto) {
+      var cantidad_items;
+      cantidad_items = 0;
+      angular.forEach($scope.compra.operacionitems, function(v, i) {
+        if (v["_destroy"] !== true) {
+          cantidad_items += 1;
+          if (v.producto.id === producto.id) {
+            if (v.cantidad !== 1) {
+              $scope.compra.total -= parseFloat(v.precio);
+            } else {
+              cantidad_items -= 1;
+              $scope.compra.total -= parseFloat(v.precio);
+              v["_destroy"] = true;
+            }
+            v.cantidad -= 1;
+            return $scope.cant_prod_en_compra[producto.id] = v.cantidad;
+          }
+        }
+      });
+      if (cantidad_items === 0) {
+        return $scope.no_hay_items = true;
+      }
+    };
+    $scope.$on('$locationChangeStart', function(event) {
+      var respuesta;
+      if (!$scope.no_hay_items) {
+        respuesta = confirm("Desea descartar la orden de compra?");
+        if (!respuesta) {
+          return event.preventDefault();
+        }
+      }
+    });
+    $scope.editar_precio = function() {
+      $scope.compra.total = 0;
+      return angular.forEach($scope.compra.operacionitems, function(v, i) {
+        var importe;
+        importe = v.cantidad * v.precio;
+        return $scope.compra.total += importe;
+      });
+    };
+    return $scope.confirmar_compra = function() {
+      $scope.compra.$update().then(function() {
+        $scope.no_hay_items = true;
+        return $location.path('/compras');
+      })["catch"](function(err) {
+        return alert(err);
+      });
+      return console.log($scope.compra);
+    };
   });
 
 }).call(this);
@@ -42735,7 +47124,387 @@ factory('ipCookie', ['$document',
 }).call(this);
 (function() {
   angular.module('Tienda').controller('OrganizacionesIndexController', function(Organizacion, $scope) {
-    return $scope.organizaciones = Organizacion.query();
+    $scope.organizaciones = Organizacion.query();
+    $scope.pre_borrar = function(objeto_a_borrar) {
+      return $scope.objeto_a_borrar = objeto_a_borrar;
+    };
+    return $scope.borrar = function() {
+      return $scope.objeto_a_borrar.$remove().then(function() {
+        return $scope.organizaciones = Organizacion.query();
+      });
+    };
+  });
+
+}).call(this);
+(function() {
+  angular.module('Tienda').controller('OrganizacionesUpdateController', function(Organizacion, $scope, $location, $routeParams) {
+    Organizacion.get({
+      id: $routeParams.id
+    }, function(data) {
+      return $scope.organizacion = data;
+    });
+    return $scope.guardar = function() {
+      return $scope.organizacion.$update().then(function() {
+        return $location.path('/organizaciones');
+      })["catch"](function(error) {
+        return alert(error['statusText']);
+      });
+    };
+  });
+
+}).call(this);
+(function() {
+  angular.module('Tienda').controller('PagotiposController', function(Pagotipo, $scope) {
+    $scope.pagotipos = Pagotipo.query();
+    return $scope.actualiza_factor = function(pagotipo) {
+      if (!(new RegExp(/^\d{1,2}(\.\d{1,3})?$/).test(pagotipo.factor))) {
+        pagotipo.factor = 1;
+        return alert('El margen mayor 1, el separador de decimales es un .');
+      }
+      if (pagotipo.factor !== pagotipo.factor_original) {
+        pagotipo.actualizando = true;
+        return Pagotipo.update({
+          id: pagotipo.id
+        }, {
+          pagotipo: {
+            factor: pagotipo.factor
+          }
+        }).$promise.then(function() {
+          pagotipo.actualizando = false;
+          return pagotipo.factor_original = pagotipo.factor;
+        })["catch"](function() {
+          return alert('error carajo!');
+        });
+      }
+    };
+  });
+
+}).call(this);
+(function() {
+  angular.module('Tienda').controller('ProductosCreateController', function(Producto, Organizacion, $scope, $location) {
+    $scope.organizaciones = Organizacion.query();
+    $scope.producto = new Producto();
+    return $scope.guardar = function() {
+      return $scope.producto.$save().then(function() {
+        return $location.path('/productos');
+      })["catch"](function(error) {
+        return alert(error['statusText']);
+      });
+    };
+  });
+
+}).call(this);
+(function() {
+  angular.module('Tienda').controller('ProductosIndexController', function(Producto, $scope, $sanitize) {
+    Producto.query().$promise.then(function(data) {
+      return $scope.productos = data;
+    });
+    Producto.precios().$promise.then(function(data) {
+      return $scope.precios = data;
+    });
+    $scope.pre_borrar = function(objeto_a_borrar) {
+      return $scope.objeto_a_borrar = objeto_a_borrar;
+    };
+    return $scope.borrar = function() {
+      return $scope.objeto_a_borrar.$remove().then(function() {
+        return $scope.productos = Producto.query();
+      });
+    };
+  });
+
+}).call(this);
+(function() {
+  angular.module('Tienda').controller('ProductosPreciosController', function(Producto, $scope, $sanitize) {
+    $scope.productos = Producto.precios();
+    return $scope.actualiza_margen = function(producto) {
+      if (!(new RegExp(/^\d{1,2}(\.\d{1,3})?$/).test(producto.margen))) {
+        producto.margen = 0;
+        return alert('El margen debe ser entre 0 y 1, el separador de decimales es un .');
+      }
+      if (producto.margen !== producto.margen_original) {
+        producto.actualizando = true;
+        return Producto.update({
+          id: producto.id
+        }, {
+          producto: {
+            margen: producto.margen
+          }
+        }).$promise.then(function() {
+          producto.actualizando = false;
+          producto.margen_original = producto.margen;
+          return producto.precio = producto.margen * producto.puc;
+        })["catch"](function() {
+          return alert('error carajo!');
+        });
+      }
+    };
+  });
+
+}).call(this);
+(function() {
+  angular.module('Tienda').controller('ProductosUpdateController', function(Producto, Organizacion, $scope, $location, $routeParams) {
+    $scope.organizaciones = Organizacion.query();
+    Producto.get({
+      id: $routeParams.id
+    }, function(data) {
+      return $scope.producto = data;
+    });
+    return $scope.guardar = function() {
+      return $scope.producto.$update().then(function() {
+        return $location.path('/productos');
+      })["catch"](function(error) {
+        return alert(error['statusText']);
+      });
+    };
+  });
+
+}).call(this);
+(function() {
+  angular.module('Tienda').controller('VentasCreateController', function(Venta, Producto, Pagotipo, $scope, $location) {
+    $scope.venta = new Venta();
+    $scope.venta.fecha = new Date();
+    $scope.productos = Producto.query();
+    $scope.no_hay_items = true;
+    $scope.venta.operacionitems = [];
+    $scope.focus_en_buscador = false;
+    $scope.venta.total = 0.00;
+    $scope.cant_prod_en_venta = {};
+    $scope.precios = Producto.precios();
+    Pagotipo.query().$promise.then(function(data) {
+      $scope.pagotipos = data;
+      $scope.venta.pagotipo_id = $scope.pagotipos[0].id;
+      return $scope.venta.factor_original = $scope.pagotipos[0].factor;
+    });
+    $scope.agregar_item = function(producto) {
+      var nuevo_item, precio, producto_en_lista;
+      if ($scope.precios[producto.id] === void 0) {
+        precio = 0;
+      } else {
+        precio = parseFloat(($scope.precios[producto.id].precio * $scope.venta.factor_original).toFixed(2));
+      }
+      producto_en_lista = false;
+      angular.forEach($scope.venta.operacionitems, function(v, i) {
+        if (v.producto.id === producto.id) {
+          v.cantidad += 1;
+          $scope.cant_prod_en_venta[producto.id] = v.cantidad;
+          producto_en_lista = true;
+          return $scope.venta.total += parseFloat(v.precio);
+        }
+      });
+      if (producto_en_lista === false) {
+        nuevo_item = {
+          "producto": {
+            "id": producto.id,
+            "nombre": producto.nombre
+          },
+          "cantidad": 1,
+          "precio": precio
+        };
+        $scope.venta.operacionitems.push(nuevo_item);
+        $scope.cant_prod_en_venta[producto.id] = 1;
+        $scope.venta.total += parseFloat(nuevo_item.precio);
+      }
+      return $scope.no_hay_items = false;
+    };
+    $scope.restar_item = function(producto) {
+      angular.forEach($scope.venta.operacionitems, function(v, i) {
+        if (v.producto.id === producto.id) {
+          if (v.cantidad !== 1) {
+            v.cantidad -= 1;
+            $scope.cant_prod_en_venta[producto.id] = v.cantidad;
+            return $scope.venta.total -= parseFloat(v.precio);
+          } else {
+            $scope.venta.total -= parseFloat(v.precio);
+            $scope.venta.operacionitems.splice(i, 1);
+            return $scope.cant_prod_en_venta[producto.id] = 0;
+          }
+        }
+      });
+      if ($scope.venta.operacionitems.length === 0) {
+        return $scope.no_hay_items = true;
+      }
+    };
+    $scope.$on('$locationChangeStart', function(event) {
+      var respuesta;
+      if (!$scope.no_hay_items) {
+        respuesta = confirm("Desea descartar la orden de venta?");
+        if (!respuesta) {
+          return event.preventDefault();
+        }
+      }
+    });
+    $scope.confirmar_venta = function() {
+      return $scope.venta.$save().then(function() {
+        $scope.no_hay_items = true;
+        return $location.path('/ventas');
+      })["catch"](function(err) {
+        return console.log(err);
+      });
+    };
+    $scope.elegir_otro = function() {
+      $scope.search = '';
+      return $('#buscador').focus();
+    };
+    $scope.editar_precio = function() {
+      $scope.venta.total = 0;
+      return angular.forEach($scope.venta.operacionitems, function(item, i) {
+        var importe;
+        importe = parseFloat((item.cantidad * item.precio).toFixed(2));
+        return $scope.venta.total += parseFloat(importe.toFixed(2));
+      });
+    };
+    return $scope.actualizar_precio_pagotipo = function(pagotipo) {
+      angular.forEach($scope.venta.operacionitems, function(item, i) {
+        return item.precio = parseFloat((item.precio * pagotipo.factor / $scope.venta.factor_original).toFixed(2));
+      });
+      $scope.venta.factor_original = pagotipo.factor;
+      return $scope.editar_precio();
+    };
+  });
+
+}).call(this);
+(function() {
+  angular.module('Tienda').controller('VentasIndexController', function(Venta, Producto, $scope) {
+    Venta.query().$promise.then(function(data) {
+      angular.forEach(data, function(venta) {
+        return venta.idsearch = '.' + venta.id;
+      });
+      return $scope.ventas = data;
+    });
+    $scope.pre_borrar = function(objeto_a_borrar) {
+      return $scope.objeto_a_borrar = objeto_a_borrar;
+    };
+    return $scope.borrar = function() {
+      return $scope.objeto_a_borrar.$remove().then(function() {
+        return $scope.ventas = Venta.query();
+      });
+    };
+  });
+
+}).call(this);
+(function() {
+  angular.module('Tienda').controller('VentasUpdateController', function(Venta, Producto, Pagotipo, $scope, $location, $routeParams) {
+    var actualizar_stocks;
+    Venta.get({
+      id: $routeParams.id
+    }).$promise.then(function(data) {
+      $scope.venta = data;
+      $scope.venta.fecha = new Date($scope.venta.fecha);
+      $scope.cant_prod_en_venta = {};
+      actualizar_stocks();
+      $scope.productos = Producto.query();
+      $scope.no_hay_items = false;
+      $scope.venta.total = parseFloat($scope.venta.total);
+      $scope.pagotipos = Pagotipo.query();
+      $scope.venta.factor_original = $scope.venta.pagotipo.factor;
+      return $scope.precios = Producto.precios();
+    })["catch"](function(err) {
+      return alert(err);
+    });
+    actualizar_stocks = function() {
+      return angular.forEach($scope.venta.operacionitems, function(v, i) {
+        return $scope.cant_prod_en_venta[v.producto_id] = v.cantidad;
+      });
+    };
+    $scope.agregar_item = function(producto) {
+      var nuevo_item, precio, producto_en_lista;
+      producto_en_lista = false;
+      if ($scope.precios[producto.id] === void 0) {
+        precio = 0;
+      } else {
+        precio = parseFloat(($scope.precios[producto.id].precio * $scope.venta.factor_original).toFixed(2));
+      }
+      producto_en_lista = false;
+      angular.forEach($scope.venta.operacionitems, function(v, i) {
+        if (v.producto.id === producto.id) {
+          v.cantidad += 1;
+          $scope.cant_prod_en_venta[v.producto.id] = v.cantidad;
+          producto_en_lista = true;
+          $scope.venta.total += parseFloat(v.precio);
+          return v["_destroy"] = false;
+        }
+      });
+      if (producto_en_lista === false) {
+        nuevo_item = {
+          "producto": {
+            "id": producto.id,
+            "nombre": producto.nombre
+          },
+          "cantidad": 1,
+          "precio": precio
+        };
+        $scope.venta.operacionitems.push(nuevo_item);
+        $scope.venta.total += nuevo_item.precio;
+        $scope.cant_prod_en_venta[producto.id] = 1;
+      }
+      return $scope.no_hay_items = false;
+    };
+    $scope.restar_item = function(producto) {
+      var cantidad_items;
+      cantidad_items = 0;
+      angular.forEach($scope.venta.operacionitems, function(v, i) {
+        if (v["_destroy"] !== true) {
+          cantidad_items += 1;
+          if (v["producto"]["id"] === producto.id) {
+            if (v["cantidad"] !== 1) {
+              $scope.venta.total -= parseFloat(v["precio"]);
+            } else {
+              cantidad_items -= 1;
+              $scope.venta.total -= parseFloat(v["precio"]);
+              v["_destroy"] = true;
+            }
+            v["cantidad"] -= 1;
+            return $scope.cant_prod_en_venta[v.producto_id] = v.cantidad;
+          }
+        }
+      });
+      if (cantidad_items === 0) {
+        return $scope.no_hay_items = true;
+      }
+    };
+    $scope.$on('$locationChangeStart', function(event) {
+      var respuesta;
+      if (!$scope.no_hay_items) {
+        respuesta = confirm("Desea descartar la orden de venta?");
+        if (!respuesta) {
+          return event.preventDefault();
+        }
+      }
+    });
+    $scope.confirmar_venta = function() {
+      $scope.venta.$update().then(function() {
+        $scope.no_hay_items = true;
+        return $location.path('/ventas');
+      })["catch"](function(err) {
+        return alert(err);
+      });
+      return console.log($scope.venta);
+    };
+    $scope.editar_precio = function() {
+      $scope.venta.total = 0;
+      return angular.forEach($scope.venta.operacionitems, function(item, i) {
+        var importe;
+        importe = parseFloat((item.cantidad * item.precio).toFixed(2));
+        return $scope.venta.total += parseFloat(importe.toFixed(2));
+      });
+    };
+    return $scope.actualizar_precio_pagotipo = function(pagotipo) {
+      angular.forEach($scope.venta.operacionitems, function(item, i) {
+        return item.precio = parseFloat((item.precio * pagotipo.factor / $scope.venta.factor_original).toFixed(2));
+      });
+      $scope.venta.factor_original = pagotipo.factor;
+      return $scope.editar_precio();
+    };
+  });
+
+}).call(this);
+(function() {
+  angular.module('Tienda').directive('tConfirmationDialog', function() {
+    return {
+      replace: true,
+      restrict: 'E',
+      templateUrl: '	/assets/confirmation_dialog-f342463713730b4726699fabdaf63c99475c9ec33c07061dd6359b9e4fa0beb5.html'
+    };
   });
 
 }).call(this);
@@ -42757,23 +47526,172 @@ factory('ipCookie', ['$document',
 
 }).call(this);
 (function() {
+  angular.module('Tienda').filter('objeto', function() {
+    return function(input, search) {
+      var result;
+      if (!input) {
+        return input;
+      }
+      if (!search) {
+        return input;
+      }
+      result = {};
+      angular.forEach(input, function(value, key) {
+        if (new RegExp(search, "i").test(value.nombre)) {
+          return result[key] = value;
+        }
+      });
+      return result;
+    };
+  });
+
+}).call(this);
+(function() {
+
+
+}).call(this);
+(function() {
   angular.module('Tienda').config(function($routeProvider) {
     return $routeProvider.when('/', {
       redirectTo: '/ventas'
-    }).when('/ventas', {
-      templateUrl: '/assets/ventas/index-891ac98ca246a643e140af8ce2708963db67ef17544fa67a3d4b3e21ae1cdb5c.html'
-    }).when('/compras', {
-      templateUrl: '/assets/compras/index-e4137b8692a5827ce138a4da3d6c44d74a9703a9511f35c33d279ca1e77f1728.html'
-    }).when('/productos', {
-      templateUrl: '/assets/productos/index-02ff6f1237fbdcf09ef529388daa33b2bfc8738e9debbb38a5d55916c1b38622.html'
-    }).when('/organizaciones', {
-      templateUrl: '/assets/organizaciones/index-582af7385eb57f2eae30a07f6147ef7acf01987ea044a3be953b76e78641f1e8.html',
-      controller: 'OrganizacionesIndexController'
-    }).when('/organizaciones/new', {
-      templateUrl: '/assets/organizaciones/form-117a93881ad4b4f538d36f3a90e39f9351202fb5b6b395a98ed3d47f76493f80.html',
-      controller: 'OrganizacionesCreateController'
     }).otherwise({
       redirectTo: '/'
+    });
+  });
+
+}).call(this);
+(function() {
+  angular.module('Tienda').config(function($routeProvider) {
+    return $routeProvider.when('/compras', {
+      templateUrl: '/assets/compras/index-28f28ad7a1910b4f68666ca7b5f6bb7c2ed713ae228e15c33ec31c93170e9580.html',
+      controller: 'ComprasIndexController'
+    }).when('/compras/new', {
+      templateUrl: '/assets/compras/form-c23d9633eef5a37dcf3e8ab016c95feb5df4d3f60d73b5dbe1fa60c17fb647e6.html',
+      controller: 'ComprasCreateController'
+    }).when('/compras/:id', {
+      templateUrl: '/assets/compras/form-c23d9633eef5a37dcf3e8ab016c95feb5df4d3f60d73b5dbe1fa60c17fb647e6.html',
+      controller: 'ComprasUpdateController'
+    });
+  });
+
+}).call(this);
+(function() {
+  angular.module('Tienda').config(function($routeProvider) {
+    return $routeProvider.when('/organizaciones', {
+      templateUrl: '/assets/organizaciones/index-ce0e1717729b558457266cecb9542cb656bc167ef058d5b5f4c3091942b4e5ac.html',
+      controller: 'OrganizacionesIndexController'
+    }).when('/organizaciones/new', {
+      templateUrl: '/assets/organizaciones/form-54cb5757a55afd7f65097e03505b1e35eb989f7349104302b0299816b35fa577.html',
+      controller: 'OrganizacionesCreateController'
+    }).when('/organizaciones/:id', {
+      templateUrl: '/assets/organizaciones/form-54cb5757a55afd7f65097e03505b1e35eb989f7349104302b0299816b35fa577.html',
+      controller: 'OrganizacionesUpdateController'
+    });
+  });
+
+}).call(this);
+(function() {
+  angular.module('Tienda').config(function($routeProvider) {
+    return $routeProvider.when('/pagotipos', {
+      templateUrl: '/assets/pagotipos/index-f5a96c16b1afc7f12f522b893e8d3e2a1ee4e663f456195d2752b8565409473f.html',
+      controller: 'PagotiposController'
+    });
+  });
+
+}).call(this);
+(function() {
+  angular.module('Tienda').config(function($routeProvider) {
+    return $routeProvider.when('/productos', {
+      templateUrl: '/assets/productos/index-3676334c20e339dc3d4e6b6c94c5fac50b323199fc6259023e475c952f6c37cd.html',
+      controller: 'ProductosIndexController'
+    }).when('/productos/new', {
+      templateUrl: '/assets/productos/form-5b28b18651342c884c03027c9be047cbe01590f111d8bdc122da01ed17c32cc2.html',
+      controller: 'ProductosCreateController'
+    }).when('/productos/precios', {
+      templateUrl: '/assets/productos/precios-e05e6db2bd208d3cdcea2bcd2fd5eeeaec786d405118721fdc9be0e637977574.html',
+      controller: 'ProductosPreciosController'
+    }).when('/productos/:id', {
+      templateUrl: '/assets/productos/form-5b28b18651342c884c03027c9be047cbe01590f111d8bdc122da01ed17c32cc2.html',
+      controller: 'ProductosUpdateController'
+    });
+  });
+
+}).call(this);
+(function() {
+  angular.module('Tienda').config(function($routeProvider) {
+    return $routeProvider.when('/ventas', {
+      templateUrl: '/assets/ventas/index-dd5ed2f5d14d3d1f5d3be47b9bdfd497d6fc41a54b3601bde4013c166aa209c7.html',
+      controller: 'VentasIndexController'
+    }).when('/ventas/new', {
+      templateUrl: '/assets/ventas/form-c288708dfa7da5d1147db658f761ec259884843503f41bb4cb07f770a782ad96.html',
+      controller: 'VentasCreateController'
+    }).when('/ventas/:id', {
+      templateUrl: '/assets/ventas/form-c288708dfa7da5d1147db658f761ec259884843503f41bb4cb07f770a782ad96.html',
+      controller: 'VentasUpdateController'
+    });
+  });
+
+}).call(this);
+(function() {
+  angular.module('Tienda').factory('Compra', function($resource) {
+    return $resource("/compras/:id", {
+      id: "@id"
+    }, {
+      update: {
+        method: "PUT"
+      }
+    });
+  });
+
+}).call(this);
+(function() {
+  angular.module('Tienda').factory('Organizacion', function($resource) {
+    return $resource("/organizaciones/:id", {
+      id: "@id"
+    }, {
+      update: {
+        method: "PUT"
+      }
+    });
+  });
+
+}).call(this);
+(function() {
+  angular.module('Tienda').factory('Pagotipo', function($resource) {
+    return $resource("/pagotipos/:id", {
+      id: "@id"
+    }, {
+      update: {
+        method: "PUT"
+      }
+    });
+  });
+
+}).call(this);
+(function() {
+  angular.module('Tienda').factory('Producto', function($resource) {
+    return $resource("/productos/:id", {
+      id: "@id"
+    }, {
+      update: {
+        method: "PUT"
+      },
+      precios: {
+        method: "GET",
+        url: '/productos/precios'
+      }
+    });
+  });
+
+}).call(this);
+(function() {
+  angular.module('Tienda').factory('Venta', function($resource) {
+    return $resource("/ventas/:id", {
+      id: "@id"
+    }, {
+      update: {
+        method: "PUT"
+      }
     });
   });
 

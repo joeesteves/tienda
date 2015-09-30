@@ -2,14 +2,17 @@
   <div class='col-md-1'>
     <a class='btn btn-success' ng-href='#/productos/new'>Nueva</a>
   </div>
-  <div class='col-md-11'>
+  <div class='col-md-10'>
     <input class='form-control' ng-model='search.$' placeholder='Buscar...'>
+  </div>
+  <div class='col-md-1'>
+    <a class='btn btn-warning' ng-href='#/productos/precios'>Precios</a>
   </div>
 </div>
 <br>
 <div class='container'>
   <div ng-repeat='producto in productos | orderBy: "nombre" | filter:search track by $index'>
-    <div class='container col-md-6'>
+    <div class='container col-md-4'>
       <div class='panel panel-info'>
         <div class='panel-body'>
           <div class='row'>
@@ -25,29 +28,29 @@
                 <li class='list-group-item list-group-item-success'>
                   <span class='glyphicon glyphicon-user'></span>
                 </li>
-                <!-- %li.list-group-item.list-group-item-info -->
-                <!-- %span.glyphicon.glyphicon-phone-alt -->
-                <!-- %li.list-group-item.list-group-item-success -->
-                <!-- %span.glyphicon.glyphicon-list-alt -->
+                <li class='list-group-item list-group-item-info'>
+                  <span class='glyphicon glyphicon-usd'></span>
+                </li>
               </ul>
             </div>
             <div class='col-md-10'>
               <ul class='list-group'>
                 <li class='list-group-item list-group-item-success'>{{producto.organizacion.nombre}}</li>
+                <li class='list-group-item list-group-item-info'>{{precios[producto.id].precio || 'sin precio'}}</li>
               </ul>
-              <!--  -->
-              <!-- %li.list-group-item.list-group-item-success -->
             </div>
           </div>
           <div class='row'>
             <div class='col-md-6'>
               <ul class='list-group'>
-                <li class='list-group-item list-group-item-info' ng-bind-html='producto.desc'></li>
+                <li class='list-group-item list-group-item-info'>
+                  <div marked='producto.desc'></div>
+                </li>
               </ul>
             </div>
             <div class='col-md-6'>
-              <li class='list-group-item list-group-item-info'>
-                <img ng-src='{{producto.image}}'>
+              <li class='list-group-item'>
+                <img ng-src='{{producto.image}}' width='100%'>
               </li>
             </div>
           </div>
@@ -57,7 +60,7 @@
         </div>
       </div>
     </div>
-    <div class='clearfix' ng-if=' $index % 2 != 0'></div>
+    <div class='clearfix' ng-if=' ($index+1) % 3 == 0'></div>
   </div>
 </div>
 <t-confirmation-dialog></t-confirmation-dialog>
