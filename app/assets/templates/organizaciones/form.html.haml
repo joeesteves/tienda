@@ -7,11 +7,11 @@
 		%div.form-group
 			%label{class: 'col-sm-2 control-label'} Id. fiscal
 			%div.col-sm-10
-				%input{tabindex: 2, type: 'text', class: "form-control", 'ui-mask': '99-99999999-9', 'ng-model': 'organizacion.id_fiscal'}
+				%input{tabindex: 2, type: 'text', class: "form-control", placeholder: '##-########-#', 'mask': '99-99999999-9', 'ng-model': 'organizacion.id_fiscal'}
 		%div.form-group
 			%label{class: 'col-sm-2 control-label'} Telefono
 			%div.col-sm-10
-				%input{tabindex: 3, type: 'text', class: "form-control", 'ui-mask': '99.9999.9999', 'ng-model': 'organizacion.telefono'}
+				%input{tabindex: 3, type: 'text', class: "form-control", 'ng-model': 'organizacion.telefono'}
 		%div.form-group
 			%label{class: 'col-sm-2 control-label'} Email
 			%div.col-sm-10

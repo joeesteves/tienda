@@ -9,6 +9,6 @@
 #= require angular-cookie/angular-cookie
 #= require angular-sanitize/angular-sanitize
 #= require angular-chosen-localytics/chosen
-#= require angular-ui-mask/dist/mask
 #= require angular-marked/angular-marked
+#= require angular-mask/dist/ngMask
 #= require_tree .

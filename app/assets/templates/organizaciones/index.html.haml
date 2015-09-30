@@ -14,18 +14,13 @@
 						%a{'ng-href': '#/organizaciones/{{organizacion.id}}'}
 							%h1.success.text-center {{organizacion.nombre}}
 				%div.row
-					%div.col-md-2
-						%ul.list-group
-							%li.list-group-item.list-group-item-success
-								%span.glyphicon.glyphicon-envelope
-							%li.list-group-item.list-group-item-info
-								%span.glyphicon.glyphicon-phone-alt
-							%li.list-group-item.list-group-item-success
-								%span.glyphicon.glyphicon-list-alt
-					%div.col-md-10
-						%li.list-group-item.list-group-item-success {{organizacion.email}}
-						%li.list-group-item.list-group-item-info {{organizacion.telefono}}
-						%li.list-group-item.list-group-item-success {{organizacion.id_fiscal}}
+					%div.col-md-12
+						%li.list-group-item.list-group-item-success
+							%span.glyphicon.glyphicon-envelope &nbsp {{organizacion.email}}
+						%li.list-group-item.list-group-item-info 
+							%span.glyphicon.glyphicon-phone-alt &nbsp {{organizacion.telefono}}
+						%li.list-group-item.list-group-item-success 
+							%span.glyphicon.glyphicon-list-alt &nbsp {{organizacion.id_fiscal}}
 				%div.row
 					%div.col-md-12 
 						%li.list-group-item.list-group-item-info {{organizacion.desc}}
