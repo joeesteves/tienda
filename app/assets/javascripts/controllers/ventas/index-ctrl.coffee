@@ -3,7 +3,7 @@ angular.module 'Tienda'
 	Venta.query().$promise
 	.then (data) ->
 		angular.forEach data, (venta) ->
-			venta.idsearch = '.' + venta.id
+			venta.idsearch = '..' + venta.id
 		$scope.ventas = data
 
 	$scope.pre_borrar = (objeto_a_borrar) ->
