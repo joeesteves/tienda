@@ -1,0 +1,12 @@
+angular.module('Tienda')
+.directive 'tOpEncabezado', ($location) ->
+	replace: true
+	restrict: 'E'
+	templateUrl: '	<%= asset_path("op_encabezado") %>'
+	link: (scope) ->
+		scope.op_activa = $location.path().split('/')[1]
+		scope.reset_search = () ->
+			scope.search = ''
+			$('#buscador').focus()
+			false
+		

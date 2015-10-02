@@ -1,77 +1,79 @@
 angular.module 'Tienda'
-.controller 'ComprasUpdateController', (Compra, Producto, $scope, $location, $routeParams) ->
+.controller 'ComprasUpdateController', (Compra, Producto, Shared, $scope, $location, $routeParams) ->
 	$scope.es_nuevo = false
+	$scope.no_hay_items = false
+	$scope.cant_prod = {}	
 	Compra.get({id: $routeParams.id}).$promise
 	.then (data) ->
-		$scope.compra = data
-		$scope.compra.fecha = new Date()	
-		$scope.productos = Producto.query()
-		$scope.no_hay_items = false
-		$scope.compra.total = parseFloat($scope.compra.total)
-		$scope.cant_prod_en_compra = {}
-		$scope.organizaciones = [data.organizacion]
-		actualizar_stock_compras()
-		$scope.precios = Producto.precios()
-	.catch (err) ->
-		alert(err)
-	
-	actualizar_stock_compras = ->
-		angular.forEach $scope.compra.operacionitems, (v,i) ->
-			$scope.cant_prod_en_compra[v.producto.id] = v.cantidad
-
+		$scope.op = data
+		$scope.op.fecha = new Date()	
+		$scope.op.total = parseFloat($scope.op.total)
+		$scope.organizaciones = data.organizacion
+		Shared.actualizar_stock($scope)
+	Producto.query().$promise.then (data) ->
+		$scope.productos = data
+	$scope.precios = Producto.precios()
 
 	$scope.agregar_item = (producto) ->
-		producto_en_lista = false
-		if $scope.precios[producto.id] == undefined
-			puc = 0 
-		else
-			puc = $scope.precios[producto.id].puc
-		angular.forEach $scope.compra.operacionitems, (v,i) ->
-			if v.producto.id == producto.id
-				v.cantidad += 1
-				producto_en_lista = true
-				$scope.compra.total += parseFloat(v.precio)
-				v["_destroy"] = false
-				$scope.cant_prod_en_compra[producto.id] = v.cantidad 
-		if producto_en_lista == false
-			nuevo_item = {"producto": {"id": producto.id, "nombre": producto.nombre}, "cantidad": 1, "precio": puc }
-			$scope.compra.operacionitems.push(nuevo_item)
-			$scope.compra.total += nuevo_item.precio
-			$scope.cant_prod_en_compra[producto.id] = 1
-		$scope.no_hay_items = false
-
+		Shared.agregar_item($scope, producto)
+	
 	$scope.restar_item = (producto) ->
-		cantidad_items = 0
-		angular.forEach $scope.compra.operacionitems, (v,i) ->
-			if v["_destroy"] != true
-				cantidad_items += 1	
-				if v.producto.id == producto.id
-					if v.cantidad != 1
-						$scope.compra.total -= parseFloat(v.precio)
-					else
-						cantidad_items -= 1
-						$scope.compra.total -= parseFloat(v.precio)
-						v["_destroy"] = true
-					v.cantidad -= 1
-					$scope.cant_prod_en_compra[producto.id] = v.cantidad
-		$scope.no_hay_items = true if cantidad_items == 0
+		Shared.restar_item($scope, producto)	
+
+	$scope.editar_precio = ->
+		Shared.editar_precio($scope)
+
+	$scope.confirmar_operacion = ->
+		Shared.confirmar_operacion($scope)
 
 	$scope.$on '$locationChangeStart', (event) ->
 		if !$scope.no_hay_items
-			respuesta = confirm("Desea descartar la orden de compra?")
+			respuesta = confirm("Desea descartar la orden de op?")
 			event.preventDefault() if !respuesta
-	$scope.editar_precio = ->
-		$scope.compra.total = 0
-		angular.forEach $scope.compra.operacionitems, (v,i) ->
-			importe = v.cantidad * v.precio
-			$scope.compra.total += importe
+	
+
+	# $scope.confirmar_operacion = () ->
+	# 	$scope.op.$update()
+	# 	.then ->
+	# 		$scope.no_hay_items = true
+	# 		$location.path('/ops')
+	# 	.catch (err) ->
+	# 		alert(err)
+	# 	console.log($scope.op)
 
 
-	$scope.confirmar_compra = () ->
-		$scope.compra.$update()
-		.then ->
-			$scope.no_hay_items = true
-			$location.path('/compras')
-		.catch (err) ->
-			alert(err)
-		console.log($scope.compra)
+
+	
+	# $scope.actualizar_stock_ops()
+	# console.log(Shared.actualizar_stock_ops)
+
+	# $scope.actualizar_stock_ops = ->
+	# 	angular.forEach $scope.op.operacionitems, (v) ->
+	# 		$scope.cant_prod[v.producto.id] = v.cantidad
+
+# 	cantidad_items = 0
+	# 	angular.forEach $scope.op.operacionitems, (v) ->
+	# 		if v.producto.id == producto.id && v["_destroy"] != true  
+	# 			v.cantidad -= 1
+	# 			v["_destroy"] = v.cantidad == 0
+	# 		cantidad_items += 1 if !v["_destroy"]
+	# 		$scope.cant_prod[producto.id] = v.cantidad
+	# 	$scope.no_hay_items = true if cantidad_items == 0
+	# 	$scope.editar_precio()
+	# 	try
+	# 		puc = $scope.precios[producto.id].puc
+	# 	catch
+	# 		puc = 0
+	# 	producto_en_lista = false
+	# 	angular.forEach $scope.op.operacionitems, (v,i) ->
+	# 		if v.producto.id == producto.id
+	# 			v.cantidad += 1
+	# 			producto_en_lista = true
+	# 			v["_destroy"] = false
+	# 			$scope.cant_prod[producto.id] = v.cantidad 
+	# 	if producto_en_lista == false
+	# 		nuevo_item = {"producto": {"id": producto.id, "nombre": producto.nombre}, "cantidad": 1, "precio": puc }
+	# 		$scope.op.operacionitems.push(nuevo_item)			# $scope.op.total += parseFloat(nuevo_item.precio)
+	# 		$scope.cant_prod[producto.id] = 1
+	# 	$scope.no_hay_items = false
+	# 	$scope.editar_precio()

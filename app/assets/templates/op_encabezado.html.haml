@@ -1,0 +1,8 @@
+%div
+	%div.col-md-1
+		%a{class: 'btn btn-warning', 'ng-href': '#/{{op_activa}}'} Cancelar
+	%div.col-md-3
+		%button{class: 'btn btn-success', style: 'width:100%', 'ng-disabled': 'no_hay_items', 'ng-click': 'confirmar_operacion()'} Confirmar
+	%div.col-md-8
+		%input{'id': 'buscador', 'ng-model': 'search.$', class: 'form-control', placeholder: 'Buscar...'}
+	%br
