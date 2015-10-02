@@ -16,23 +16,19 @@
 						%div.col-md-12
 							%a{'ng-href': '#/productos/{{producto.id}}'}
 								%h1.success.text-center {{producto.nombre}}
-					%div.row
-						%div.col-md-2
+					%div.row							
+						%div.col-md-12
 							%ul.list-group
 								%li.list-group-item.list-group-item-success
-									%span.glyphicon.glyphicon-user
+									%span.glyphicon.glyphicon-user &nbsp {{producto.organizacion.nombre}} 
+							%ul.list-group
 								%li.list-group-item.list-group-item-info
-									%span.glyphicon.glyphicon-usd
-						%div.col-md-10
-							%ul.list-group
-								%li.list-group-item.list-group-item-success {{producto.organizacion.nombre}}
-								%li.list-group-item.list-group-item-info {{precios[producto.id].precio || 'sin precio'}}
+									%span.glyphicon.glyphicon-usd &nbsp {{precios[producto.id].precio || 'Sin precio / Sin Compras'}}
 					%div.row
-						%div.col-md-6
-							%ul.list-group
-								%li{class: 'list-group-item list-group-item-info'}
-									%div{'marked': 'producto.desc'}
-						%div.col-md-6
+						%div{'ng-show': 'tiene_desc(producto)', 'ng-class': "tiene_imagen(producto) ? 'col-md-6':'col-md-12'" } 
+							%li{class: 'list-group-item list-group-item-info'}
+								%div{'marked': 'producto.desc'}
+						%div{'ng-show': 'tiene_imagen(producto)', 'ng-class': "tiene_desc(producto) ? 'col-md-6':'col-md-12'" }  
 							%li{class: 'list-group-item'}
 								%img{'ng-src': '{{producto.image}}', width: '100%'}
 				%div.panel-footer.text-right

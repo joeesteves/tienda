@@ -1,21 +1,12 @@
 <div class='container'>
-  <div class='col-md-1'>
-    <a class='btn btn-warning' ng-href='#/ventas'>Cancelar</a>
-  </div>
-  <div class='col-md-3'>
-    <button class='btn btn-success' ng-click='confirmar_venta()' ng-disabled='no_hay_items' style='width:100%'>Confirmar</button>
-  </div>
-  <div class='col-md-8'>
-    <input class='form-control' id='buscador' ng-model='search.$' placeholder='Buscar...'>
-  </div>
-  <br>
+  <t-op-encabezado></t-op-encabezado>
   <div class='col-md-4'>
     <br>
-    <input ng-model='venta.fecha' type='date'>
-    <textarea ng-model='venta.desc' placeholder='Notas...' style='width:100%'></textarea>
+    <input ng-model='op.fecha' type='date'>
+    <textarea ng-model='op.desc' placeholder='Notas...' style='width:100%'></textarea>
     <div class='row'>
       <div class='col-md-4' ng-repeat='pagotipo in pagotipos'>
-        <input name='cp' ng-change='actualizar_precio_pagotipo(pagotipo)' ng-model='venta.pagotipo_id' ng-value='pagotipo.id' type='radio'>{{pagotipo.nombre}} ({{pagotipo.factor}})</input>
+        <input name='cp' ng-change='actualizar_precio_pagotipo(pagotipo)' ng-model='op.pagotipo_id' ng-value='pagotipo.id' type='radio'>{{pagotipo.nombre}} ({{pagotipo.factor}})</input>
       </div>
     </div>
     <table class='table table-striped'>
@@ -28,7 +19,7 @@
         </tr>
       </thead>
       <tbody>
-        <tr ng-hide='item._destroy' ng-repeat='item in venta.operacionitems'>
+        <tr ng-hide='item._destroy' ng-repeat='item in op.operacionitems'>
           <td>{{item.cantidad}}</td>
           <td>{{item.producto.nombre}}</td>
           <td>
@@ -38,16 +29,16 @@
         </tr>
         <tr ng-hide='no_hay_items'>
           <td class='warning' colspan='3'>Total</td>
-          <td class='warning'>{{venta.total | number : fractionSize}}</td>
+          <td class='warning'>{{op.total | number : fractionSize}}</td>
         </tr>
         <tr>
           <td colspan='4'>
             <div class='input-group'>
               <span class='input-group-addon'>
                 Seña &nbsp
-                <input ng-false-value='false' ng-model='venta.reserva' ng-true-value='true' type='checkbox'>
+                <input ng-false-value='false' ng-model='op.reserva' ng-true-value='true' type='checkbox'>
               </span>
-              <input class='form-control' ng-disabled='venta.reserva != true' ng-model='venta.pago' ng-show='venta.reserva == true' type='text'>
+              <input class='form-control' ng-disabled='op.reserva != true' ng-model='op.pago' ng-show='op.reserva == true' type='text'>
             </div>
           </td>
         </tr>
@@ -72,7 +63,7 @@
                   <button class='btn btn-warning btn-sm'>
                     Venta
                     <br>
-                    <span class='badge' ng-hide='cant_prod_en_venta[producto.id] &lt;= 0'>{{ cant_prod_en_venta[producto.id] }}</span>
+                    <span class='badge' ng-hide='cant_prod[producto.id] &lt;= 0'>{{ cant_prod[producto.id] }}</span>
                   </button>
                 </div>
               </div>
@@ -81,7 +72,7 @@
                   <button class='btn btn-success btn-sm'>
                     Stock
                     <br>
-                    <span class='badge' ng-hide='cant_prod_en_venta[producto.id] + 50 &lt;= 0'>{{50 -  cant_prod_en_venta[producto.id]}}</span>
+                    <span class='badge' ng-hide='cant_prod[producto.id] + 50 &lt;= 0'>{{50 -  cant_prod[producto.id]}}</span>
                   </button>
                 </div>
               </div>
@@ -97,7 +88,7 @@
               </div>
               <div class='col-md-4'>
                 <div class='row'>
-                  <button class='btn' ng-click='elegir_otro()'>
+                  <button class='btn' ng-click='reset_search()'>
                     <span class='glyphicon glyphicon-shopping-cart'></span>
                   </button>
                 </div>

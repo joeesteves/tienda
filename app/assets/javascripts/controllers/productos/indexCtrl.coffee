@@ -10,3 +10,14 @@ angular.module 'Tienda'
 		$scope.objeto_a_borrar.$remove()
 		.then ->
 			$scope.productos = Producto.query()
+	$scope.tiene_imagen = (producto) ->
+		if [null, undefined, ''].indexOf(producto.image) == -1
+			true
+		else
+			false
+		
+	$scope.tiene_desc = (producto) ->
+		if [null, undefined, ''].indexOf(producto.desc) == -1
+			true
+		else
+			false

@@ -47064,101 +47064,36 @@ angular.module('ngSanitize').filter('linky', ['$sanitize', function($sanitize) {
 
 }).call(this);
 (function() {
-  angular.module('Tienda').controller('ComprasCreateController', function(Compra, Producto, Organizacion, $scope, $location) {
+  angular.module('Tienda').controller('ComprasCreateController', function(Compra, Producto, Organizacion, Shared, $scope, $location) {
     $scope.es_nuevo = true;
-    $scope.compra = new Compra();
-    $scope.compra.fecha = new Date();
-    $scope.organizaciones = Organizacion.query();
-    $scope.productos = Producto.query();
     $scope.no_hay_items = true;
-    $scope.compra.operacionitems = [];
-    $scope.focus_en_buscador = false;
-    $scope.compra.total = 0.00;
-    $scope.cant_prod_en_compra = {};
+    $scope.op = new Compra();
+    $scope.op.fecha = new Date();
+    $scope.op.operacionitems = [];
+    $scope.op.total = 0.00;
+    $scope.cant_prod = {};
+    Organizacion.query().$promise.then(function(data) {
+      return $scope.organizaciones = data;
+    });
+    Producto.query().$promise.then(function(data) {
+      return $scope.productos = data;
+    });
     $scope.precios = Producto.precios();
     $scope.agregar_item = function(producto) {
-      var nuevo_item, producto_en_lista, puc;
-      if ($scope.precios[producto.id] === void 0) {
-        puc = 0;
-      } else {
-        puc = $scope.precios[producto.id].puc;
-      }
-      producto_en_lista = false;
-      angular.forEach($scope.compra.operacionitems, function(v, i) {
-        var importe;
-        importe = v.cantidad * v.precio;
-        $scope.compra.total += importe;
-        if (v.producto.id === producto.id) {
-          v.cantidad += 1;
-          $scope.cant_prod_en_compra[producto.id] = v.cantidad;
-          return producto_en_lista = true;
-        }
-      });
-      if (producto_en_lista === false) {
-        nuevo_item = {
-          "producto": {
-            "id": producto.id,
-            "nombre": producto.nombre
-          },
-          "cantidad": 1,
-          "precio": puc
-        };
-        $scope.compra.operacionitems.push(nuevo_item);
-        $scope.cant_prod_en_compra[producto.id] = 1;
-        $scope.compra.total += parseFloat(nuevo_item.precio);
-      }
-      $scope.no_hay_items = false;
-      if ($scope.compra.operacionitems.length === 1) {
-        return $scope.compra.organizacion_id = producto.organizacion_id;
-      }
+      return Shared.agregar_item($scope, producto);
     };
     $scope.restar_item = function(producto) {
-      angular.forEach($scope.compra.operacionitems, function(v, i) {
-        if (v.producto.id === producto.id) {
-          if (v.cantidad !== 1) {
-            v.cantidad -= 1;
-            $scope.cant_prod_en_compra[producto.id] = v.cantidad;
-            return $scope.compra.total -= parseFloat(v.precio);
-          } else {
-            $scope.compra.total -= parseFloat(v.precio);
-            $scope.compra.operacionitems.splice(i, 1);
-            return $scope.cant_prod_en_compra[producto.id] = 0;
-          }
-        }
-      });
-      if ($scope.compra.operacionitems.length === 0) {
-        return $scope.no_hay_items = true;
-      }
+      return Shared.restar_item($scope, producto);
     };
-    $scope.$on('$locationChangeStart', function(event) {
-      var respuesta;
-      if (!$scope.no_hay_items) {
-        respuesta = confirm("Desea descartar la orden de compra?");
-        if (!respuesta) {
-          return event.preventDefault();
-        }
-      }
-    });
     $scope.editar_precio = function() {
-      $scope.compra.total = 0;
-      return angular.forEach($scope.compra.operacionitems, function(v, i) {
-        var importe;
-        importe = v.cantidad * v.precio;
-        return $scope.compra.total += importe;
-      });
+      return Shared.editar_precio($scope);
     };
-    $scope.confirmar_compra = function() {
-      return $scope.compra.$save().then(function() {
-        $scope.no_hay_items = true;
-        return $location.path('/compras');
-      })["catch"](function(err) {
-        return console.log(err);
-      });
+    $scope.confirmar_operacion = function() {
+      return Shared.confirmar_operacion($scope);
     };
-    return $scope.elegir_otro = function() {
-      $scope.search = '';
-      return $('#buscador').focus();
-    };
+    return $scope.$on('$locationChangeStart', function(event) {
+      return Shared.descartar_form($scope, event);
+    });
   });
 
 }).call(this);
@@ -47182,110 +47117,38 @@ angular.module('ngSanitize').filter('linky', ['$sanitize', function($sanitize) {
 
 }).call(this);
 (function() {
-  angular.module('Tienda').controller('ComprasUpdateController', function(Compra, Producto, $scope, $location, $routeParams) {
-    var actualizar_stock_compras;
+  angular.module('Tienda').controller('ComprasUpdateController', function(Compra, Producto, Shared, $scope, $location, $routeParams) {
     $scope.es_nuevo = false;
+    $scope.no_hay_items = false;
+    $scope.cant_prod = {};
     Compra.get({
       id: $routeParams.id
     }).$promise.then(function(data) {
-      $scope.compra = data;
-      $scope.compra.fecha = new Date();
-      $scope.productos = Producto.query();
-      $scope.no_hay_items = false;
-      $scope.compra.total = parseFloat($scope.compra.total);
-      $scope.cant_prod_en_compra = {};
-      $scope.organizaciones = [data.organizacion];
-      actualizar_stock_compras();
-      return $scope.precios = Producto.precios();
-    })["catch"](function(err) {
-      return alert(err);
+      $scope.op = data;
+      $scope.op.fecha = new Date();
+      $scope.op.total = parseFloat($scope.op.total);
+      $scope.organizaciones = data.organizacion;
+      return Shared.actualizar_stock($scope);
     });
-    actualizar_stock_compras = function() {
-      return angular.forEach($scope.compra.operacionitems, function(v, i) {
-        return $scope.cant_prod_en_compra[v.producto.id] = v.cantidad;
-      });
-    };
+    Producto.query().$promise.then(function(data) {
+      return $scope.productos = data;
+    });
+    $scope.precios = Producto.precios();
     $scope.agregar_item = function(producto) {
-      var nuevo_item, producto_en_lista, puc;
-      producto_en_lista = false;
-      if ($scope.precios[producto.id] === void 0) {
-        puc = 0;
-      } else {
-        puc = $scope.precios[producto.id].puc;
-      }
-      angular.forEach($scope.compra.operacionitems, function(v, i) {
-        if (v.producto.id === producto.id) {
-          v.cantidad += 1;
-          producto_en_lista = true;
-          $scope.compra.total += parseFloat(v.precio);
-          v["_destroy"] = false;
-          return $scope.cant_prod_en_compra[producto.id] = v.cantidad;
-        }
-      });
-      if (producto_en_lista === false) {
-        nuevo_item = {
-          "producto": {
-            "id": producto.id,
-            "nombre": producto.nombre
-          },
-          "cantidad": 1,
-          "precio": puc
-        };
-        $scope.compra.operacionitems.push(nuevo_item);
-        $scope.compra.total += nuevo_item.precio;
-        $scope.cant_prod_en_compra[producto.id] = 1;
-      }
-      return $scope.no_hay_items = false;
+      return Shared.agregar_item($scope, producto);
     };
     $scope.restar_item = function(producto) {
-      var cantidad_items;
-      cantidad_items = 0;
-      angular.forEach($scope.compra.operacionitems, function(v, i) {
-        if (v["_destroy"] !== true) {
-          cantidad_items += 1;
-          if (v.producto.id === producto.id) {
-            if (v.cantidad !== 1) {
-              $scope.compra.total -= parseFloat(v.precio);
-            } else {
-              cantidad_items -= 1;
-              $scope.compra.total -= parseFloat(v.precio);
-              v["_destroy"] = true;
-            }
-            v.cantidad -= 1;
-            return $scope.cant_prod_en_compra[producto.id] = v.cantidad;
-          }
-        }
-      });
-      if (cantidad_items === 0) {
-        return $scope.no_hay_items = true;
-      }
+      return Shared.restar_item($scope, producto);
     };
-    $scope.$on('$locationChangeStart', function(event) {
-      var respuesta;
-      if (!$scope.no_hay_items) {
-        respuesta = confirm("Desea descartar la orden de compra?");
-        if (!respuesta) {
-          return event.preventDefault();
-        }
-      }
-    });
     $scope.editar_precio = function() {
-      $scope.compra.total = 0;
-      return angular.forEach($scope.compra.operacionitems, function(v, i) {
-        var importe;
-        importe = v.cantidad * v.precio;
-        return $scope.compra.total += importe;
-      });
+      return Shared.editar_precio($scope);
     };
-    return $scope.confirmar_compra = function() {
-      $scope.compra.$update().then(function() {
-        $scope.no_hay_items = true;
-        return $location.path('/compras');
-      })["catch"](function(err) {
-        return alert(err);
-      });
-      return console.log($scope.compra);
+    $scope.confirmar_operacion = function() {
+      return Shared.confirmar_operacion($scope);
     };
+    return $scope.$on('$locationChangeStart', function(event) {
+      return Shared.descartar_form($scope, event);
+    });
   });
 
 }).call(this);
@@ -47385,10 +47248,24 @@ angular.module('ngSanitize').filter('linky', ['$sanitize', function($sanitize) {
     $scope.pre_borrar = function(objeto_a_borrar) {
       return $scope.objeto_a_borrar = objeto_a_borrar;
     };
-    return $scope.borrar = function() {
+    $scope.borrar = function() {
       return $scope.objeto_a_borrar.$remove().then(function() {
         return $scope.productos = Producto.query();
       });
+    };
+    $scope.tiene_imagen = function(producto) {
+      if ([null, void 0, ''].indexOf(producto.image) === -1) {
+        return true;
+      } else {
+        return false;
+      }
+    };
+    return $scope.tiene_desc = function(producto) {
+      if ([null, void 0, ''].indexOf(producto.desc) === -1) {
+        return true;
+      } else {
+        return false;
+      }
     };
   });
 
@@ -47440,109 +47317,40 @@ angular.module('ngSanitize').filter('linky', ['$sanitize', function($sanitize) {
 
 }).call(this);
 (function() {
-  angular.module('Tienda').controller('VentasCreateController', function(Venta, Producto, Pagotipo, $scope, $location) {
-    $scope.venta = new Venta();
-    $scope.venta.fecha = new Date();
-    $scope.productos = Producto.query();
+  angular.module('Tienda').controller('VentasCreateController', function(Venta, Producto, Pagotipo, Shared, $scope, $location) {
     $scope.no_hay_items = true;
-    $scope.venta.operacionitems = [];
-    $scope.focus_en_buscador = false;
-    $scope.venta.total = 0.00;
-    $scope.cant_prod_en_venta = {};
-    $scope.precios = Producto.precios();
+    $scope.cant_prod = {};
+    $scope.op = new Venta();
+    $scope.op.fecha = new Date();
+    $scope.op.total = 0.00;
+    $scope.op.operacionitems = [];
+    Producto.query().$promise.then(function(data) {
+      return $scope.productos = data;
+    });
     Pagotipo.query().$promise.then(function(data) {
       $scope.pagotipos = data;
-      $scope.venta.pagotipo_id = $scope.pagotipos[0].id;
-      return $scope.venta.factor_original = $scope.pagotipos[0].factor;
+      $scope.op.pagotipo_id = $scope.pagotipos[0].id;
+      return $scope.op.factor_original = $scope.pagotipos[0].factor;
     });
+    $scope.precios = Producto.precios();
     $scope.agregar_item = function(producto) {
-      var nuevo_item, precio, producto_en_lista;
-      if ($scope.precios[producto.id] === void 0) {
-        precio = 0;
-      } else {
-        precio = parseFloat(($scope.precios[producto.id].precio * $scope.venta.factor_original).toFixed(2));
-      }
-      producto_en_lista = false;
-      angular.forEach($scope.venta.operacionitems, function(v, i) {
-        if (v.producto.id === producto.id) {
-          v.cantidad += 1;
-          $scope.cant_prod_en_venta[producto.id] = v.cantidad;
-          producto_en_lista = true;
-          return $scope.venta.total += parseFloat(v.precio);
-        }
-      });
-      if (producto_en_lista === false) {
-        nuevo_item = {
-          "producto": {
-            "id": producto.id,
-            "nombre": producto.nombre
-          },
-          "cantidad": 1,
-          "precio": precio
-        };
-        $scope.venta.operacionitems.push(nuevo_item);
-        $scope.cant_prod_en_venta[producto.id] = 1;
-        $scope.venta.total += parseFloat(nuevo_item.precio);
-      }
-      return $scope.no_hay_items = false;
+      return Shared.agregar_item($scope, producto);
     };
     $scope.restar_item = function(producto) {
-      angular.forEach($scope.venta.operacionitems, function(v, i) {
-        if (v.producto.id === producto.id) {
-          if (v.cantidad !== 1) {
-            v.cantidad -= 1;
-            $scope.cant_prod_en_venta[producto.id] = v.cantidad;
-            return $scope.venta.total -= parseFloat(v.precio);
-          } else {
-            $scope.venta.total -= parseFloat(v.precio);
-            $scope.venta.operacionitems.splice(i, 1);
-            return $scope.cant_prod_en_venta[producto.id] = 0;
-          }
-        }
-      });
-      if ($scope.venta.operacionitems.length === 0) {
-        return $scope.no_hay_items = true;
-      }
+      return Shared.restar_item($scope, producto);
     };
-    $scope.$on('$locationChangeStart', function(event) {
-      var respuesta;
-      if (!$scope.no_hay_items) {
-        respuesta = confirm("Desea descartar la orden de venta?");
-        if (!respuesta) {
-          return event.preventDefault();
-        }
-      }
-    });
-    $scope.confirmar_venta = function() {
-      if ($scope.venta.reserva !== true) {
-        $scope.venta.pago = $scope.venta.total;
-      }
-      return $scope.venta.$save().then(function() {
-        $scope.no_hay_items = true;
-        return $location.path('/ventas');
-      })["catch"](function(err) {
-        return console.log(err);
-      });
-    };
-    $scope.elegir_otro = function() {
-      $scope.search = '';
-      return $('#buscador').focus();
+    $scope.confirmar_operacion = function() {
+      return Shared.confirmar_operacion($scope);
     };
     $scope.editar_precio = function() {
-      $scope.venta.total = 0;
-      return angular.forEach($scope.venta.operacionitems, function(item, i) {
-        var importe;
-        importe = parseFloat((item.cantidad * item.precio).toFixed(2));
-        return $scope.venta.total += parseFloat(importe.toFixed(2));
-      });
+      return Shared.editar_precio($scope);
     };
-    return $scope.actualizar_precio_pagotipo = function(pagotipo) {
-      angular.forEach($scope.venta.operacionitems, function(item, i) {
-        return item.precio = parseFloat((item.precio * pagotipo.factor / $scope.venta.factor_original).toFixed(2));
-      });
-      $scope.venta.factor_original = pagotipo.factor;
-      return $scope.editar_precio();
+    $scope.actualizar_precio_pagotipo = function(pagotipo) {
+      return Shared.actualizar_precio_pagotipo($scope, pagotipo);
     };
+    return $scope.$on('$locationChangeStart', function(event) {
+      return Shared.descartar_form($scope, event);
+    });
   });
 
 }).call(this);
@@ -47570,122 +47378,46 @@ angular.module('ngSanitize').filter('linky', ['$sanitize', function($sanitize) {
 
 }).call(this);
 (function() {
-  angular.module('Tienda').controller('VentasUpdateController', function(Venta, Producto, Pagotipo, $scope, $location, $routeParams) {
-    var actualizar_stocks;
+  angular.module('Tienda').controller('VentasUpdateController', function(Venta, Producto, Shared, Pagotipo, $scope, $location, $routeParams) {
+    $scope.no_hay_items = false;
+    $scope.cant_prod = {};
     Venta.get({
       id: $routeParams.id
     }).$promise.then(function(data) {
-      $scope.venta = data;
-      $scope.venta.fecha = new Date($scope.venta.fecha);
-      $scope.venta.reserva = $scope.venta.pago !== $scope.venta.total;
-      $scope.venta.total = parseFloat($scope.venta.total);
-      $scope.cant_prod_en_venta = {};
-      actualizar_stocks();
-      $scope.productos = Producto.query();
-      $scope.no_hay_items = false;
-      $scope.pagotipos = Pagotipo.query();
-      $scope.venta.factor_original = $scope.venta.pagotipo.factor;
-      return $scope.precios = Producto.precios();
+      $scope.op = data;
+      $scope.op.fecha = new Date($scope.op.fecha);
+      $scope.op.reserva = $scope.op.pago !== $scope.op.total;
+      $scope.op.total = parseFloat($scope.op.total);
+      $scope.op.factor_original = $scope.op.pagotipo.factor;
+      Producto.query().$promise.then(function(data) {
+        $scope.productos = data;
+        $scope.precios = Producto.precios();
+        return Shared.actualizar_stock($scope);
+      });
+      return Pagotipo.query().$promise.then(function(data) {
+        return $scope.pagotipos = data;
+      });
     })["catch"](function(err) {
-      return alert(err);
+      return console.log(err);
     });
-    actualizar_stocks = function() {
-      return angular.forEach($scope.venta.operacionitems, function(v, i) {
-        return $scope.cant_prod_en_venta[v.producto_id] = v.cantidad;
-      });
-    };
     $scope.agregar_item = function(producto) {
-      var nuevo_item, precio, producto_en_lista;
-      producto_en_lista = false;
-      if ($scope.precios[producto.id] === void 0) {
-        precio = 0;
-      } else {
-        precio = parseFloat(($scope.precios[producto.id].precio * $scope.venta.factor_original).toFixed(2));
-      }
-      producto_en_lista = false;
-      angular.forEach($scope.venta.operacionitems, function(v, i) {
-        if (v.producto.id === producto.id) {
-          v.cantidad += 1;
-          $scope.cant_prod_en_venta[v.producto.id] = v.cantidad;
-          producto_en_lista = true;
-          $scope.venta.total += parseFloat(v.precio);
-          return v["_destroy"] = false;
-        }
-      });
-      if (producto_en_lista === false) {
-        nuevo_item = {
-          "producto": {
-            "id": producto.id,
-            "nombre": producto.nombre
-          },
-          "cantidad": 1,
-          "precio": precio
-        };
-        $scope.venta.operacionitems.push(nuevo_item);
-        $scope.venta.total += nuevo_item.precio;
-        $scope.cant_prod_en_venta[producto.id] = 1;
-      }
-      return $scope.no_hay_items = false;
+      return Shared.agregar_item($scope, producto);
     };
     $scope.restar_item = function(producto) {
-      var cantidad_items;
-      cantidad_items = 0;
-      angular.forEach($scope.venta.operacionitems, function(v, i) {
-        if (v["_destroy"] !== true) {
-          cantidad_items += 1;
-          if (v["producto"]["id"] === producto.id) {
-            if (v["cantidad"] !== 1) {
-              $scope.venta.total -= parseFloat(v["precio"]);
-            } else {
-              cantidad_items -= 1;
-              $scope.venta.total -= parseFloat(v["precio"]);
-              v["_destroy"] = true;
-            }
-            v["cantidad"] -= 1;
-            return $scope.cant_prod_en_venta[v.producto_id] = v.cantidad;
-          }
-        }
-      });
-      if (cantidad_items === 0) {
-        return $scope.no_hay_items = true;
-      }
+      return Shared.restar_item($scope, producto);
     };
-    $scope.$on('$locationChangeStart', function(event) {
-      var respuesta;
-      if (!$scope.no_hay_items) {
-        respuesta = confirm("Desea descartar la orden de venta?");
-        if (!respuesta) {
-          return event.preventDefault();
-        }
-      }
-    });
-    $scope.confirmar_venta = function() {
-      if ($scope.venta.reserva !== true) {
-        $scope.venta.pago = $scope.venta.total;
-      }
-      $scope.venta.$update().then(function() {
-        $scope.no_hay_items = true;
-        return $location.path('/ventas');
-      })["catch"](function(err) {
-        return alert(err);
-      });
-      return console.log($scope.venta);
+    $scope.confirmar_operacion = function() {
+      return Shared.confirmar_operacion($scope);
     };
     $scope.editar_precio = function() {
-      $scope.venta.total = 0;
-      return angular.forEach($scope.venta.operacionitems, function(item, i) {
-        var importe;
-        importe = parseFloat((item.cantidad * item.precio).toFixed(2));
-        return $scope.venta.total += parseFloat(importe.toFixed(2));
-      });
+      return Shared.editar_precio($scope);
     };
-    return $scope.actualizar_precio_pagotipo = function(pagotipo) {
-      angular.forEach($scope.venta.operacionitems, function(item, i) {
-        return item.precio = parseFloat((item.precio * pagotipo.factor / $scope.venta.factor_original).toFixed(2));
-      });
-      $scope.venta.factor_original = pagotipo.factor;
-      return $scope.editar_precio();
+    $scope.actualizar_precio_pagotipo = function(pagotipo) {
+      return Shared.actualizar_precio_pagotipo($scope, pagotipo);
     };
+    return $scope.$on('$locationChangeStart', function(event) {
+      return Shared.descartar_form($scope, event);
+    });
   });
 
 }).call(this);
@@ -47711,6 +47443,24 @@ angular.module('ngSanitize').filter('linky', ['$sanitize', function($sanitize) {
           return scope.op_activa = $location.path().split('/')[1];
         });
         return scope.opciones_de_menu = ['Ventas', 'Compras', 'Productos', 'Organizaciones'];
+      }
+    };
+  });
+
+}).call(this);
+(function() {
+  angular.module('Tienda').directive('tOpEncabezado', function($location) {
+    return {
+      replace: true,
+      restrict: 'E',
+      templateUrl: '	/assets/op_encabezado-a7849464cd75fe2c6f1e19bf3a5707a6f089a709f8082fbf15f036919f94f887.html',
+      link: function(scope) {
+        scope.op_activa = $location.path().split('/')[1];
+        return scope.reset_search = function() {
+          scope.search = '';
+          $('#buscador').focus();
+          return false;
+        };
       }
     };
   });
@@ -47757,10 +47507,10 @@ angular.module('ngSanitize').filter('linky', ['$sanitize', function($sanitize) {
       templateUrl: '/assets/compras/index-f237fc60e8d40389ea89f63c9a190dc17d3cec7305389c82ca7a08ed5b0b57bc.html',
       controller: 'ComprasIndexController'
     }).when('/compras/new', {
-      templateUrl: '/assets/compras/form-f60317cbb41fceb7c9818c8c790ad7c4f2008a1a9677ae1a3c4351e53c7dc09d.html',
+      templateUrl: '/assets/compras/form-867e9b41d8a02127e56895692e96c99c60aefddd34705b42f8cdfc64be9e2678.html',
       controller: 'ComprasCreateController'
     }).when('/compras/:id', {
-      templateUrl: '/assets/compras/form-f60317cbb41fceb7c9818c8c790ad7c4f2008a1a9677ae1a3c4351e53c7dc09d.html',
+      templateUrl: '/assets/compras/form-867e9b41d8a02127e56895692e96c99c60aefddd34705b42f8cdfc64be9e2678.html',
       controller: 'ComprasUpdateController'
     });
   });
@@ -47793,7 +47543,7 @@ angular.module('ngSanitize').filter('linky', ['$sanitize', function($sanitize) {
 (function() {
   angular.module('Tienda').config(function($routeProvider) {
     return $routeProvider.when('/productos', {
-      templateUrl: '/assets/productos/index-3676334c20e339dc3d4e6b6c94c5fac50b323199fc6259023e475c952f6c37cd.html',
+      templateUrl: '/assets/productos/index-bd98f184f40d6a77a4dce56cd41abc70ddb5df81fbba0d7b6c923a33a1caa29c.html',
       controller: 'ProductosIndexController'
     }).when('/productos/new', {
       templateUrl: '/assets/productos/form-5b28b18651342c884c03027c9be047cbe01590f111d8bdc122da01ed17c32cc2.html',
@@ -47814,10 +47564,10 @@ angular.module('ngSanitize').filter('linky', ['$sanitize', function($sanitize) {
       templateUrl: '/assets/ventas/index-6a66fd5b9b86069c09f2c46d802ab3abe6276c89d33585b57f2198f69dd12926.html',
       controller: 'VentasIndexController'
     }).when('/ventas/new', {
-      templateUrl: '/assets/ventas/form-f74bc7180c8f793f4bf47de743eae8c0c888564c3e04098744efd9a7bbd9b735.html',
+      templateUrl: '/assets/ventas/form-cfc31f05a712b9cb57d7b84ce698ec17efd19643c5dca155057d4a9149089d90.html',
       controller: 'VentasCreateController'
     }).when('/ventas/:id', {
-      templateUrl: '/assets/ventas/form-f74bc7180c8f793f4bf47de743eae8c0c888564c3e04098744efd9a7bbd9b735.html',
+      templateUrl: '/assets/ventas/form-cfc31f05a712b9cb57d7b84ce698ec17efd19643c5dca155057d4a9149089d90.html',
       controller: 'VentasUpdateController'
     });
   });
@@ -47872,6 +47622,131 @@ angular.module('ngSanitize').filter('linky', ['$sanitize', function($sanitize) {
         url: '/productos/precios'
       }
     });
+  });
+
+}).call(this);
+(function() {
+  angular.module('Tienda').factory('Shared', function($location) {
+    return {
+      editar_precio: function(scope) {
+        scope.op.total = 0;
+        angular.forEach(scope.op.operacionitems, function(item) {
+          var importe;
+          importe = item.cantidad * item.precio;
+          return scope.op.total += importe;
+        });
+        return parseFloat(scope.op.total.toFixed(2));
+      },
+      actualizar_stock: function(scope) {
+        return angular.forEach(scope.op.operacionitems, function(item) {
+          return scope.cant_prod[item.producto.id] = item.cantidad;
+        });
+      },
+      confirmar_operacion: function(scope) {
+        var accion, controller;
+        if (this.es_create()) {
+          accion = "$save";
+        } else {
+          accion = "$update";
+        }
+        controller = this.get_controller();
+        if (controller === "ventas" && scope.op.reserva !== true) {
+          scope.op.pago = scope.op.total;
+        }
+        return scope.op[accion]().then(function() {
+          scope.no_hay_items = true;
+          return $location.path('/' + controller);
+        })["catch"](function(err) {
+          return console.log(err);
+        });
+      },
+      restar_item: function(scope, producto) {
+        var cantidad_items;
+        cantidad_items = 0;
+        angular.forEach(scope.op.operacionitems, function(item) {
+          if (item.producto.id === producto.id && item["_destroy"] !== true) {
+            item.cantidad -= 1;
+            item["_destroy"] = item.cantidad === 0;
+          }
+          if (!item["_destroy"]) {
+            cantidad_items += 1;
+          }
+          return scope.cant_prod[producto.id] = item.cantidad;
+        });
+        if (cantidad_items === 0) {
+          scope.no_hay_items = true;
+        }
+        return scope.editar_precio();
+      },
+      agregar_item: function(scope, producto) {
+        var cantidad_items, factor_original, nuevo_item, producto_en_lista, puc;
+        cantidad_items = 0;
+        factor_original = scope.op.factor_original || 1;
+        puc = this.set_puc(scope.precios, producto.id, factor_original);
+        producto_en_lista = false;
+        angular.forEach(scope.op.operacionitems, function(item) {
+          if (!item["_destroy"]) {
+            cantidad_items += 1;
+          }
+          if (item.producto.id === producto.id) {
+            item.cantidad += 1;
+            producto_en_lista = true;
+            item["_destroy"] = false;
+            return scope.cant_prod[producto.id] = item.cantidad;
+          }
+        });
+        if (producto_en_lista === false) {
+          cantidad_items += 1;
+          nuevo_item = {
+            "producto": {
+              "id": producto.id,
+              "nombre": producto.nombre
+            },
+            "cantidad": 1,
+            "precio": puc
+          };
+          scope.op.operacionitems.push(nuevo_item);
+          scope.cant_prod[producto.id] = 1;
+        }
+        scope.no_hay_items = false;
+        scope.editar_precio();
+        if (cantidad_items === 1) {
+          return scope.op.organizacion_id = producto.organizacion_id;
+        }
+      },
+      set_puc: function(precios, producto_id, factor_original) {
+        var margen, puc;
+        margen = this.get_controller() === 'ventas' ? precios[producto_id].margen : 1;
+        try {
+          puc = precios[producto_id].puc * factor_original * margen;
+        } catch (_error) {
+          puc = 0;
+        }
+        return parseFloat(puc.toFixed(2));
+      },
+      actualizar_precio_pagotipo: function(scope, pagotipo) {
+        angular.forEach(scope.op.operacionitems, function(item) {
+          return item.precio = parseFloat((item.precio * pagotipo.factor / scope.op.factor_original).toFixed(2));
+        });
+        scope.op.factor_original = pagotipo.factor;
+        return scope.editar_precio();
+      },
+      es_create: function() {
+        return new RegExp("/new").test($location.path());
+      },
+      get_controller: function() {
+        return $location.path().match(/^\/(\w+)\/?/)[1];
+      },
+      descartar_form: function(scope, event) {
+        var respuesta;
+        if (!scope.no_hay_items) {
+          respuesta = confirm("Desea descartar la orden de venta?");
+          if (!respuesta) {
+            return event.preventDefault();
+          }
+        }
+      }
+    };
   });
 
 }).call(this);

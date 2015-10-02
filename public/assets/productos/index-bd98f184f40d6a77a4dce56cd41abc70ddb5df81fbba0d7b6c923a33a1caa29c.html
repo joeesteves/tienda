@@ -23,32 +23,26 @@
             </div>
           </div>
           <div class='row'>
-            <div class='col-md-2'>
+            <div class='col-md-12'>
               <ul class='list-group'>
                 <li class='list-group-item list-group-item-success'>
-                  <span class='glyphicon glyphicon-user'></span>
-                </li>
-                <li class='list-group-item list-group-item-info'>
-                  <span class='glyphicon glyphicon-usd'></span>
+                  <span class='glyphicon glyphicon-user'>&nbsp {{producto.organizacion.nombre}}</span>
                 </li>
               </ul>
-            </div>
-            <div class='col-md-10'>
               <ul class='list-group'>
-                <li class='list-group-item list-group-item-success'>{{producto.organizacion.nombre}}</li>
-                <li class='list-group-item list-group-item-info'>{{precios[producto.id].precio || 'sin precio'}}</li>
+                <li class='list-group-item list-group-item-info'>
+                  <span class='glyphicon glyphicon-usd'>&nbsp {{precios[producto.id].precio || 'Sin precio / Sin Compras'}}</span>
+                </li>
               </ul>
             </div>
           </div>
           <div class='row'>
-            <div class='col-md-6'>
-              <ul class='list-group'>
-                <li class='list-group-item list-group-item-info'>
-                  <div marked='producto.desc'></div>
-                </li>
-              </ul>
+            <div ng-class="tiene_imagen(producto) ? 'col-md-6':'col-md-12'" ng-show='tiene_desc(producto)'>
+              <li class='list-group-item list-group-item-info'>
+                <div marked='producto.desc'></div>
+              </li>
             </div>
-            <div class='col-md-6'>
+            <div ng-class="tiene_desc(producto) ? 'col-md-6':'col-md-12'" ng-show='tiene_imagen(producto)'>
               <li class='list-group-item'>
                 <img ng-src='{{producto.image}}' width='100%'>
               </li>

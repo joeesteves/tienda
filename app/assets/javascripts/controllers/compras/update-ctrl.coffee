@@ -27,9 +27,7 @@ angular.module 'Tienda'
 		Shared.confirmar_operacion($scope)
 
 	$scope.$on '$locationChangeStart', (event) ->
-		if !$scope.no_hay_items
-			respuesta = confirm("Desea descartar la orden de op?")
-			event.preventDefault() if !respuesta
+		Shared.descartar_form($scope, event)
 	
 
 	# $scope.confirmar_operacion = () ->
