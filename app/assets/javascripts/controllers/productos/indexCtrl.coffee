@@ -1,5 +1,5 @@
 angular.module 'Tienda' 
-.controller 'ProductosIndexController', (Producto, $scope, $sanitize) ->
+.controller 'ProductosIndexController', (Producto, $scope) ->
 	Producto.query().$promise.then (data) ->
 		$scope.productos = data
 	Producto.precios().$promise.then (data) ->

@@ -1,13 +1,12 @@
 #= require jquery
-#= require bootstrap-sass-official/assets/javascripts/bootstrap.js
 #= require jquery_ujs
-#= require marked/lib/marked
+#= require bootstrap-sass-official/assets/javascripts/bootstrap.js
 #= require chosen/chosen.jquery
+#= require marked/lib/marked
 #= require angular/angular
 #= require angular-resource/angular-resource
 #= require angular-route/angular-route
 #= require angular-cookie/angular-cookie
-#= require angular-sanitize/angular-sanitize
 #= require angular-chosen-localytics/chosen
 #= require angular-marked/angular-marked
 #= require angular-mask/dist/ngMask

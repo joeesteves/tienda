@@ -5,7 +5,6 @@
     "angular-route": "latest",
     "angular-resource": "latest",
     "angular-cookie": "latest",
-    "angular-sanitize": "latest",
     "angular-chosen-localytics": "latest",
     "angular-marked": "latest",
     "bootstrap-sass-official": "latest",

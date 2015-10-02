@@ -1,5 +1,5 @@
 angular.module 'Tienda' 
-.controller 'ProductosPreciosController', (Producto, $scope, $sanitize) ->
+.controller 'ProductosPreciosController', (Producto, $scope) ->
 	$scope.productos = Producto.precios()
 	$scope.actualiza_margen = (producto)->
 		if !(new RegExp(/^\d{1,2}(\.\d{1,3})?$/).test(producto.margen))

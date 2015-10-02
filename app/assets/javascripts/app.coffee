@@ -1,1 +1,1 @@
-angular.module('Tienda', ['ngRoute','ngResource', 'ngSanitize', 'localytics.directives', 'ngMask', 'hc.marked'])
+angular.module('Tienda', ['ngRoute','ngResource', 'localytics.directives', 'ngMask', 'hc.marked'])
