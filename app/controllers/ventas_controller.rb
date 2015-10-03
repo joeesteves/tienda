@@ -12,7 +12,6 @@ class VentasController < ApplicationController
 	end
 
 	def show
-		puts @venta.fecha
 		render json: @venta.as_json
 	end
 	
