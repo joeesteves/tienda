@@ -6,7 +6,7 @@ angular.module 'Tienda'
 	Compra.get({id: $routeParams.id}).$promise
 	.then (data) ->
 		$scope.op = data
-		$scope.op.fecha = new Date()	
+		$scope.op.fecha = new Date($scope.op.fecha + ' ')
 		$scope.op.total = parseFloat($scope.op.total)
 		$scope.organizaciones = data.organizacion
 		Shared.actualizar_stock($scope)

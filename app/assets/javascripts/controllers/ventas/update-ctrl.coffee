@@ -4,7 +4,7 @@ angular.module 'Tienda'
 	$scope.cant_prod = {} # {id_delproducto: cantidad}
 	Venta.get({id: $routeParams.id}).$promise.then (data) ->
 		$scope.op = data
-		$scope.op.fecha = new Date($scope.op.fecha)
+		$scope.op.fecha = new Date($scope.op.fecha + ' ')
 		$scope.op.reserva = ($scope.op.pago != $scope.op.total)
 		$scope.op.total = parseFloat($scope.op.total)
 		$scope.op.factor_original = $scope.op.pagotipo.factor

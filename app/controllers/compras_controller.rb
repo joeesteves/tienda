@@ -14,11 +14,12 @@ class ComprasController < ApplicationController
 	def show
 		render json: @compra.as_json
 	end
+	
 	def create
 		op_compra = Operaciontipo.find_by_nombre('compra')
 		compra = op_compra.operaciones.new(compra_params)
 		if compra.save
-			render json: compra
+			head :no_content
 		else
 			render json: compra.errors.full_messages.to_json, status: 422
 		end
@@ -26,7 +27,7 @@ class ComprasController < ApplicationController
 
 	def update
 		if @compra.update(compra_params)
-			render json: @compra
+			head :no_content
 		end
 	end
 

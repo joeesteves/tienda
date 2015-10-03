@@ -19,7 +19,7 @@ class VentasController < ApplicationController
 		op_venta = Operaciontipo.find_by_nombre('venta')
 		venta = op_venta.operaciones.new(venta_params)
 		if venta.save
-			render json: venta
+			head :no_content
 		else
 			render json: venta.errors.full_messages.to_json, status: 422
 		end
@@ -27,7 +27,7 @@ class VentasController < ApplicationController
 
 	def update
 		if @venta.update(venta_params)
-			render json: @venta
+			head :no_content
 		end
 	end
 

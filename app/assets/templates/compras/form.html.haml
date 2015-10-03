@@ -1,37 +1,39 @@
 %div.container
-	%t-op-encabezado
-	%div.col-md-4
-		%div.form-group
-			%div{'ng-show': 'es_nuevo'} 
-				%input{class: "form-control", type: 'date', 'ng-model': 'op.fecha'}
-				%select{class: "form-control",'chosen': true, 'data-placeholder': 'Seleccionar un proveedor...', 'ng-model': 'op.organizacion_id', 'ng-options': 'organizacion.id as organizacion.nombre for organizacion in organizaciones'}
-			%div{'ng-hide': 'es_nuevo'}
-				%br
-				%h4.text-center.text-warning {{op.organizacion.nombre}}
+	%form{'ng-submit': 'confirmar_operacion()'}
+		%t-op-encabezado
+		%div.col-md-4
+			%br
+			%input{class: "form-control", type: 'date', 'ng-model': 'op.fecha'}
+			%div.form-group
+				%div{'ng-show': 'es_nuevo'} 
+					%select{class: "form-control",'chosen': true, 'data-placeholder': 'Seleccionar un proveedor...', 'ng-model': 'op.organizacion_id', 'ng-options': 'organizacion.id as organizacion.nombre for organizacion in organizaciones'}
+				%div{'ng-hide': 'es_nuevo'}
+					%br
+					%h4.text-center.text-warning {{op.organizacion.nombre}}
 
-				%option
-			%textarea{placeholder: 'Notas...', style: 'width:100%', 'ng-model': 'op.desc'}
-			%table.table.table-striped
-				%thead
-					%tr
-						%th #
-						%th Producto
-						%th Precio
-						%th Importe
-				%tbody
-					%tr{'ng-repeat': 'item in op.operacionitems', 'ng-hide': 'item._destroy'}
-						%td {{item.cantidad}}
-						%td {{item.producto.nombre}}
-						%td
-							%input{class: "form-control", type: 'textarea', 'ng-model': 'item.precio', 'ng-change': 'editar_precio()'}
-						%td {{item.cantidad * item.precio | number : fractionSize}}
-					%tr{'ng-hide': 'no_hay_items'}
-						%td{class: 'warning', colspan:3} Total
-						%td{class: 'warning'} {{ op.total | number : fractionSize }}
-					%tr{'ng-show': 'no_hay_items'}
-						%td{class: 'info text-right', colspan:4}
-							Arme su orden de op ... 
-							%span{class: 'glyphicon glyphicon-share-alt'} 
+					%option
+				%textarea{placeholder: 'Notas...', style: 'width:100%', 'ng-model': 'op.desc'}
+				%table.table.table-striped
+					%thead
+						%tr
+							%th #
+							%th Producto
+							%th Precio
+							%th Importe
+					%tbody
+						%tr{'ng-repeat': 'item in op.operacionitems', 'ng-hide': 'item._destroy'}
+							%td {{item.cantidad}}
+							%td {{item.producto.nombre}}
+							%td
+								%input{class: "form-control", type: 'textarea', 'ng-model': 'item.precio', 'ng-change': 'editar_precio()'}
+							%td {{item.cantidad * item.precio | number : fractionSize}}
+						%tr{'ng-hide': 'no_hay_items'}
+							%td{class: 'warning', colspan:3} Total
+							%td{class: 'warning'} {{ op.total | number : fractionSize }}
+						%tr{'ng-show': 'no_hay_items'}
+							%td{class: 'info text-right', colspan:4}
+								Arme su orden de op ... 
+								%span{class: 'glyphicon glyphicon-share-alt'} 
 
 	%div.col-md-8
 		%br

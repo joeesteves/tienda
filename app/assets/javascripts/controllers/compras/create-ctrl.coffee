@@ -23,6 +23,7 @@ angular.module 'Tienda'
 		Shared.editar_precio($scope)
 
 	$scope.confirmar_operacion = ->
+		# console.log(alert($scope.op.fecha))
 		Shared.confirmar_operacion($scope)
 
 	$scope.$on '$locationChangeStart', (event) ->
