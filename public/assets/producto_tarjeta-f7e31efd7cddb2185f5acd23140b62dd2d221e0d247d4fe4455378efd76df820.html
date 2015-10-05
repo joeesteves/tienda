@@ -1,0 +1,46 @@
+<div class='container col-md-4'>
+  <div class='panel panel-info'>
+    <div class='panel-body'>
+      <div class='row'>
+        <div class='col-md-12'>
+          <a ng-href='#/productos/{{producto.id}}'>
+            <h2 class='success text-center producto_nombre' data-placement='bottom' data-toggle='tooltip' title='{{producto.nombre}}'>{{producto.nombre | limitTo:18}} ...</h2>
+          </a>
+        </div>
+      </div>
+      <t-producto-home ng-show='producto.tab_activa == "home"'></t-producto-home>
+      <t-producto-img ng-show='producto.tab_activa == "img"'></t-producto-img>
+      <t-producto-info ng-show='producto.tab_activa == "info"'></t-producto-info>
+      <br>
+      <div class='row'>
+        <div class='col-md-12'>
+          <ul class='nav nav-pills'>
+            <li ng-hide='tiene_imagen(producto) || tiene_info(producto)' role='presentation'>
+              <a ng-click='false'>
+                <span class='glyphicon glyphicon-pushpin'></span>
+              </a>
+            </li>
+            <li ng-class='{active: producto.tab_activa == "home"}' ng-show='tiene_imagen(producto) || tiene_info(producto)' role='presentation'>
+              <a ng-click='producto.tab_activa = "home"'>
+                <span class='glyphicon glyphicon-home'></span>
+              </a>
+            </li>
+            <li ng-class='{active: producto.tab_activa == "img"}' ng-show='tiene_imagen(producto)' role='presentation'>
+              <a ng-click='producto.tab_activa = "img"'>
+                <span class='glyphicon glyphicon-camera'></span>
+              </a>
+            </li>
+            <li ng-class='{active: producto.tab_activa == "info"}' ng-show='tiene_info(producto)' role='presentation'>
+              <a ng-click='producto.tab_activa = "info"'>
+                <span class='glyphicon glyphicon-info-sign'></span>
+              </a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class='panel-footer text-right'>
+      <span class='glyphicon glyphicon-remove text-danger' data-target='#myModal' data-toggle='modal' ng-click='pre_borrar(producto)'></span>
+    </div>
+  </div>
+</div>
