@@ -3,7 +3,7 @@
 		%a{class: 'btn btn-success', 'ng-href': '#/productos/new'} Nuevo
 	%div.col-md-10
 		%div.input-group
-			%input{class: 'form-control', 'ng-model': 'search.$', placeholder: 'Buscar...'}
+			%input{class: 'form-control', 'ng-model': 'search.$', placeholder: 'Buscar...', 'ng-change': 'actualizarTooltip()'}
 			%span.input-group-addon 
 				%input{type: 'checkbox', 'ng-model': 'mostrar', 'ng-true-value': 'false', 'ng-false-value': '{{mostrar}}', 'data-toggle': 'tooltip', 'data-placement': 'top', 'title': 'Listar todos los items', 'id': 'mostrar_todos'}
 	%div.col-md-1
@@ -11,33 +11,9 @@
 %br
 
 %div.container
-	%div{'ng-repeat': 'producto in productos | orderBy: "-updated_at" | filter:search | limitTo:mostrar track by $index'}
-		%div.container.col-md-4
-			%div.panel.panel-info		
-				%div.panel-body
-					%div.row
-						%div.col-md-12
-							%a{'ng-href': '#/productos/{{producto.id}}'}
-								%h1.success.text-center {{producto.nombre}}
-					%div.row							
-						%div.col-md-12
-							%ul.list-group
-								%li.list-group-item.list-group-item-success
-									%span.glyphicon.glyphicon-user &nbsp {{producto.organizacion.nombre}} 
-							%ul.list-group
-								%li.list-group-item.list-group-item-info
-									%span.glyphicon.glyphicon-usd &nbsp {{precios[producto.id].precio || 'Sin precio / Sin Compras'}}
-					%div.row
-						%div{'ng-show': 'tiene_desc(producto)', 'ng-class': "tiene_imagen(producto) ? 'col-md-6':'col-md-12'" } 
-							%li{class: 'list-group-item list-group-item-info'}
-								%div{'marked': 'producto.desc'}
-						%div{'ng-show': 'tiene_imagen(producto)', 'ng-class': "tiene_desc(producto) ? 'col-md-6':'col-md-12'" }  
-							%li{class: 'list-group-item'}
-								%img{'ng-src': '{{producto.image}}', width: '100%'}
-				%div.panel-footer.text-right
-					%span{class: 'glyphicon glyphicon-remove text-danger', 'ng-click': 'pre_borrar(producto)', 'data-toggle': 'modal', 'data-target': '#myModal'}
+	%div{'ng-repeat': 'producto in productos | orderBy: "-updated_at" | filter:search | limitTo:mostrar track by $index', 'ng-init': 'producto.tab_activa = "home"'}
+		%t-producto-tarjeta
 		%div{class: 'clearfix', 'ng-if': ' ($index+1) % 3 == 0'}
-
 %t-confirmation-dialog
 
 

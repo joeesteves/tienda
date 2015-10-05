@@ -1,9 +1,13 @@
 angular.module 'Tienda' 
-.controller 'ProductosIndexController', (Producto, $scope) ->
+.controller 'ProductosIndexController', (Producto, $scope, $timeout) ->
 	$scope.mostrar = 12
 	$('#mostrar_todos').tooltip()
 	Producto.query().$promise.then (data) ->
 		$scope.productos = data
+		$timeout ->
+			$('.producto_nombre').tooltip()
+		$scope.$on '$destroy', ->
+			$('.producto_nombre').tooltip('destroy')
 	Producto.precios().$promise.then (data) ->
 		$scope.precios = data
 	$scope.pre_borrar = (objeto_a_borrar) ->
@@ -16,10 +20,13 @@ angular.module 'Tienda'
 		if [null, undefined, ''].indexOf(producto.image) == -1
 			true
 		else
-			false
-		
-	$scope.tiene_desc = (producto) ->
+			false	
+	$scope.tiene_info = (producto) ->
 		if [null, undefined, ''].indexOf(producto.desc) == -1
 			true
 		else
 			false
+	$scope.actualizarTooltip = () ->
+		$timeout ->
+			$('.producto_nombre').tooltip('destroy')
+			$('.producto_nombre').tooltip()
