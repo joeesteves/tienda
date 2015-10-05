@@ -1,5 +1,7 @@
 angular.module 'Tienda' 
 .controller 'VentasIndexController', (Venta, Producto, $scope) ->
+	$scope.mostrar = 12
+	$('#mostrar_todos').tooltip()
 	Venta.query().$promise
 	.then (data) ->
 		angular.forEach data, (venta) ->

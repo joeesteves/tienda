@@ -1,56 +1,58 @@
 <div class='container'>
-  <t-op-encabezado></t-op-encabezado>
-  <div class='col-md-4'>
-    <br>
-    <input ng-model='op.fecha' type='date'>
-    <textarea ng-model='op.desc' placeholder='Notas...' style='width:100%'></textarea>
-    <div class='row'>
-      <div class='col-md-4' ng-repeat='pagotipo in pagotipos'>
-        <input name='cp' ng-change='actualizar_precio_pagotipo(pagotipo)' ng-model='op.pagotipo_id' ng-value='pagotipo.id' type='radio'>{{pagotipo.nombre}} ({{pagotipo.factor}})</input>
+  <form ng-submit='confirmar_operacion()'>
+    <t-op-encabezado></t-op-encabezado>
+    <div class='col-md-4'>
+      <br>
+      <input ng-model='op.fecha' type='date'>
+      <textarea ng-model='op.desc' placeholder='Notas...' style='width:100%'></textarea>
+      <div class='row'>
+        <div class='col-md-4' ng-repeat='pagotipo in pagotipos'>
+          <input name='cp' ng-change='actualizar_precio_pagotipo(pagotipo)' ng-model='op.pagotipo_id' ng-value='pagotipo.id' type='radio'>{{pagotipo.nombre}} ({{pagotipo.factor}})</input>
+        </div>
       </div>
+      <table class='table table-striped'>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Producto</th>
+            <th>Precio</th>
+            <th>Importe</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr ng-hide='item._destroy' ng-repeat='item in op.operacionitems'>
+            <td>{{item.cantidad}}</td>
+            <td>{{item.producto.nombre}}</td>
+            <td>
+              <input class='form-control' ng-change='editar_precio()' ng-model='item.precio' type='text'>
+            </td>
+            <td>{{item.cantidad * item.precio | number : fractionSize}}</td>
+          </tr>
+          <tr ng-hide='no_hay_items'>
+            <td class='warning' colspan='3'>Total</td>
+            <td class='warning'>{{op.total | number : fractionSize}}</td>
+          </tr>
+          <tr>
+            <td colspan='4'>
+              <div class='input-group'>
+                <span class='input-group-addon'>
+                  Seña &nbsp
+                  <input ng-false-value='false' ng-model='op.reserva' ng-true-value='true' type='checkbox'>
+                </span>
+                <input class='form-control' ng-disabled='op.reserva != true' ng-model='op.pago' ng-show='op.reserva == true' type='text'>
+              </div>
+            </td>
+          </tr>
+          <tr ng-show='no_hay_items'>
+            <td class='info text-right' colspan='4'>
+              Arme su orden de venta ...
+              <span class='glyphicon glyphicon-share-alt'></span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
-    <table class='table table-striped'>
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Producto</th>
-          <th>Precio</th>
-          <th>Importe</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr ng-hide='item._destroy' ng-repeat='item in op.operacionitems'>
-          <td>{{item.cantidad}}</td>
-          <td>{{item.producto.nombre}}</td>
-          <td>
-            <input class='form-control' ng-change='editar_precio()' ng-model='item.precio' type='text'>
-          </td>
-          <td>{{item.cantidad * item.precio | number : fractionSize}}</td>
-        </tr>
-        <tr ng-hide='no_hay_items'>
-          <td class='warning' colspan='3'>Total</td>
-          <td class='warning'>{{op.total | number : fractionSize}}</td>
-        </tr>
-        <tr>
-          <td colspan='4'>
-            <div class='input-group'>
-              <span class='input-group-addon'>
-                Seña &nbsp
-                <input ng-false-value='false' ng-model='op.reserva' ng-true-value='true' type='checkbox'>
-              </span>
-              <input class='form-control' ng-disabled='op.reserva != true' ng-model='op.pago' ng-show='op.reserva == true' type='text'>
-            </div>
-          </td>
-        </tr>
-        <tr ng-show='no_hay_items'>
-          <td class='info text-right' colspan='4'>
-            Arme su orden de venta ...
-            <span class='glyphicon glyphicon-share-alt'></span>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+  </form>
   <div class='col-md-8'>
     <br>
     <div ng-repeat='producto in productos | orderBy: "nombre" | filter:search track by $index'>

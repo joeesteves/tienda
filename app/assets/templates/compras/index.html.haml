@@ -2,14 +2,16 @@
 	%div.col-md-1
 		%a{class: 'btn btn-success', 'ng-href': '#/compras/new'} Nueva
 	%div.col-md-10
-		%input{'ng-model': 'search.$', class: 'form-control', placeholder: 'Buscar...'}
+		%div.input-group
+			%input{class: 'form-control', 'ng-model': 'search.$', placeholder: 'Buscar...'}
+			%span.input-group-addon 
+				%input{type: 'checkbox', 'ng-model': 'mostrar', 'ng-true-value': 'false', 'ng-false-value': '{{mostrar}}', 'data-toggle': 'tooltip', 'data-placement': 'top', 'title': 'Listar todos los items', 'id': 'mostrar_todos'}
 	%div.col-md-1
 		%a{class: 'btn btn-warning', 'ng-href': 'compras.csv'} Exportar
-
 %br
 
 %div.container
-	%div{'ng-repeat': 'compra in compras | orderBy: "created_at" | filter:search'}
+	%div{'ng-repeat': 'compra in compras | orderBy: "-updated_at" | filter:search | limitTo:mostrar'}
 		%div.container.col-md-3
 			%div.panel.panel-info		
 				%div.panel-body

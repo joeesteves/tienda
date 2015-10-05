@@ -1,5 +1,7 @@
 angular.module 'Tienda' 
 .controller 'ProductosIndexController', (Producto, $scope) ->
+	$scope.mostrar = 12
+	$('#mostrar_todos').tooltip()
 	Producto.query().$promise.then (data) ->
 		$scope.productos = data
 	Producto.precios().$promise.then (data) ->

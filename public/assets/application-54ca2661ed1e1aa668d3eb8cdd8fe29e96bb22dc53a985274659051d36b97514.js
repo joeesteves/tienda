@@ -46493,6 +46493,8 @@ factory('ipCookie', ['$document',
 }).call(this);
 (function() {
   angular.module('Tienda').controller('ComprasIndexController', function(Compra, Producto, $scope) {
+    $scope.mostrar = 12;
+    $('#mostrar_todos').tooltip();
     Compra.query().$promise.then(function(data) {
       angular.forEach(data, function(compra) {
         return compra.idsearch = '..' + compra.id;
@@ -46519,7 +46521,7 @@ factory('ipCookie', ['$document',
       id: $routeParams.id
     }).$promise.then(function(data) {
       $scope.op = data;
-      $scope.op.fecha = new Date();
+      $scope.op.fecha = new Date($scope.op.fecha + ' ');
       $scope.op.total = parseFloat($scope.op.total);
       $scope.organizaciones = data.organizacion;
       return Shared.actualizar_stock($scope);
@@ -46633,6 +46635,8 @@ factory('ipCookie', ['$document',
 }).call(this);
 (function() {
   angular.module('Tienda').controller('ProductosIndexController', function(Producto, $scope) {
+    $scope.mostrar = 12;
+    $('#mostrar_todos').tooltip();
     Producto.query().$promise.then(function(data) {
       return $scope.productos = data;
     });
@@ -46750,6 +46754,8 @@ factory('ipCookie', ['$document',
 }).call(this);
 (function() {
   angular.module('Tienda').controller('VentasIndexController', function(Venta, Producto, $scope) {
+    $scope.mostrar = 12;
+    $('#mostrar_todos').tooltip();
     Venta.query().$promise.then(function(data) {
       angular.forEach(data, function(venta) {
         venta.reserva = venta.total !== venta.pago;
@@ -46779,7 +46785,7 @@ factory('ipCookie', ['$document',
       id: $routeParams.id
     }).$promise.then(function(data) {
       $scope.op = data;
-      $scope.op.fecha = new Date($scope.op.fecha);
+      $scope.op.fecha = new Date($scope.op.fecha + ' ');
       $scope.op.reserva = $scope.op.pago !== $scope.op.total;
       $scope.op.total = parseFloat($scope.op.total);
       $scope.op.factor_original = $scope.op.pagotipo.factor;
@@ -46847,7 +46853,7 @@ factory('ipCookie', ['$document',
     return {
       replace: true,
       restrict: 'E',
-      templateUrl: '	/assets/op_encabezado-a7849464cd75fe2c6f1e19bf3a5707a6f089a709f8082fbf15f036919f94f887.html',
+      templateUrl: '	/assets/op_encabezado-cfcfb02aed60a85fba6d36e5cae0fac743c7d2d1c14bb67af6e61c6609913fae.html',
       link: function(scope) {
         scope.op_activa = $location.path().split('/')[1];
         return scope.reset_search = function() {
@@ -46882,10 +46888,6 @@ factory('ipCookie', ['$document',
 
 }).call(this);
 (function() {
-
-
-}).call(this);
-(function() {
   angular.module('Tienda').config(function($routeProvider) {
     return $routeProvider.when('/', {
       redirectTo: '/ventas'
@@ -46898,13 +46900,13 @@ factory('ipCookie', ['$document',
 (function() {
   angular.module('Tienda').config(function($routeProvider) {
     return $routeProvider.when('/compras', {
-      templateUrl: '/assets/compras/index-f237fc60e8d40389ea89f63c9a190dc17d3cec7305389c82ca7a08ed5b0b57bc.html',
+      templateUrl: '/assets/compras/index-8f6b356cb786b4b3d4c9018caf2ad1bf9a8eb08fd5ad382e226ae12255fabb84.html',
       controller: 'ComprasIndexController'
     }).when('/compras/new', {
-      templateUrl: '/assets/compras/form-867e9b41d8a02127e56895692e96c99c60aefddd34705b42f8cdfc64be9e2678.html',
+      templateUrl: '/assets/compras/form-a491d33c9788f05a89d43f4eaab090377712074f3b1d5416439dc9a1c7ba7b9c.html',
       controller: 'ComprasCreateController'
     }).when('/compras/:id', {
-      templateUrl: '/assets/compras/form-867e9b41d8a02127e56895692e96c99c60aefddd34705b42f8cdfc64be9e2678.html',
+      templateUrl: '/assets/compras/form-a491d33c9788f05a89d43f4eaab090377712074f3b1d5416439dc9a1c7ba7b9c.html',
       controller: 'ComprasUpdateController'
     });
   });
@@ -46937,7 +46939,7 @@ factory('ipCookie', ['$document',
 (function() {
   angular.module('Tienda').config(function($routeProvider) {
     return $routeProvider.when('/productos', {
-      templateUrl: '/assets/productos/index-bd98f184f40d6a77a4dce56cd41abc70ddb5df81fbba0d7b6c923a33a1caa29c.html',
+      templateUrl: '/assets/productos/index-3f785a64de6694159c25b9524a1bfc44346b8c93ab392e75e27d9f941056031b.html',
       controller: 'ProductosIndexController'
     }).when('/productos/new', {
       templateUrl: '/assets/productos/form-5b28b18651342c884c03027c9be047cbe01590f111d8bdc122da01ed17c32cc2.html',
@@ -46955,13 +46957,13 @@ factory('ipCookie', ['$document',
 (function() {
   angular.module('Tienda').config(function($routeProvider) {
     return $routeProvider.when('/ventas', {
-      templateUrl: '/assets/ventas/index-6a66fd5b9b86069c09f2c46d802ab3abe6276c89d33585b57f2198f69dd12926.html',
+      templateUrl: '/assets/ventas/index-c049ead0090bf63c89ecfbe55ab21025277a3df0fa25fd03894bd339f80554fb.html',
       controller: 'VentasIndexController'
     }).when('/ventas/new', {
-      templateUrl: '/assets/ventas/form-cfc31f05a712b9cb57d7b84ce698ec17efd19643c5dca155057d4a9149089d90.html',
+      templateUrl: '/assets/ventas/form-70695b5b918f29289b07b1509d290fec732b0204f65e6958bb48bdbd1f19ed76.html',
       controller: 'VentasCreateController'
     }).when('/ventas/:id', {
-      templateUrl: '/assets/ventas/form-cfc31f05a712b9cb57d7b84ce698ec17efd19643c5dca155057d4a9149089d90.html',
+      templateUrl: '/assets/ventas/form-70695b5b918f29289b07b1509d290fec732b0204f65e6958bb48bdbd1f19ed76.html',
       controller: 'VentasUpdateController'
     });
   });

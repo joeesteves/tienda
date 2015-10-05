@@ -1,9 +1,14 @@
 <div class='container'>
   <div class='col-md-1'>
-    <a class='btn btn-success' ng-href='#/productos/new'>Nueva</a>
+    <a class='btn btn-success' ng-href='#/productos/new'>Nuevo</a>
   </div>
   <div class='col-md-10'>
-    <input class='form-control' ng-model='search.$' placeholder='Buscar...'>
+    <div class='input-group'>
+      <input class='form-control' ng-model='search.$' placeholder='Buscar...'>
+      <span class='input-group-addon'>
+        <input data-placement='top' data-toggle='tooltip' id='mostrar_todos' ng-false-value='{{mostrar}}' ng-model='mostrar' ng-true-value='false' title='Listar todos los items' type='checkbox'>
+      </span>
+    </div>
   </div>
   <div class='col-md-1'>
     <a class='btn btn-warning' ng-href='#/productos/precios'>Precios</a>
@@ -11,7 +16,7 @@
 </div>
 <br>
 <div class='container'>
-  <div ng-repeat='producto in productos | orderBy: "nombre" | filter:search track by $index'>
+  <div ng-repeat='producto in productos | orderBy: "-updated_at" | filter:search | limitTo:mostrar track by $index'>
     <div class='container col-md-4'>
       <div class='panel panel-info'>
         <div class='panel-body'>
