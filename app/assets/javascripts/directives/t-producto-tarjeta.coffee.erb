@@ -1,0 +1,17 @@
+angular.module('Tienda')
+.directive 'tProductoTarjeta', () ->
+	replace: true
+	restrict: 'E'
+	templateUrl: '	<%= asset_path("producto_tarjeta") %>'
+.directive 'tProductoHome', () ->
+	replace: true
+	restrict: 'E'
+	templateUrl: '	<%= asset_path("producto_home") %>'
+.directive 'tProductoImg', () ->
+	replace: true
+	restrict: 'E'
+	templateUrl: '	<%= asset_path("producto_img") %>'
+.directive 'tProductoInfo', () ->
+	replace: true
+	restrict: 'E'
+	templateUrl: '	<%= asset_path("producto_info") %>'

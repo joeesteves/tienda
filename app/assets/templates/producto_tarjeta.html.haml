@@ -1,0 +1,28 @@
+%div.container.col-md-4
+	%div.panel.panel-info
+		%div.panel-body
+			%div.row
+				%div.col-md-12
+					%a{'ng-href': '#/productos/{{producto.id}}'}
+						%h2{class: 'success text-center producto_nombre', title: '{{producto.nombre}}', 'data-toggle': 'tooltip', 'data-placement': 'bottom'} {{producto.nombre | limitTo:18}} ...
+			%t-producto-home{'ng-show': 'producto.tab_activa == "home"'}
+			%t-producto-img{'ng-show': 'producto.tab_activa == "img"'}
+			%t-producto-info{'ng-show': 'producto.tab_activa == "info"'}
+			%br
+			%div.row
+				%div.col-md-12
+					%ul.nav.nav-pills
+						%li{role:'presentation', 'ng-hide': 'tiene_imagen(producto) || tiene_info(producto)'}
+							%a{'ng-click': 'false'}
+								%span{class: 'glyphicon glyphicon-pushpin'}
+						%li{role:'presentation', 'ng-class': '{active: producto.tab_activa == "home"}', 'ng-show': 'tiene_imagen(producto) || tiene_info(producto)'}
+							%a{'ng-click': 'producto.tab_activa = "home"'}
+								%span{class: 'glyphicon glyphicon-home'}
+						%li{role:'presentation', 'ng-class': '{active: producto.tab_activa == "img"}', 'ng-show': 'tiene_imagen(producto)'}
+							%a{'ng-click': 'producto.tab_activa = "img"'}
+								%span{class: 'glyphicon glyphicon-camera'}
+						%li{role:'presentation', 'ng-class': '{active: producto.tab_activa == "info"}', 'ng-show': 'tiene_info(producto)'}
+							%a{'ng-click': 'producto.tab_activa = "info"'}
+								%span{class: 'glyphicon glyphicon-info-sign'}
+		%div.panel-footer.text-right
+			%span{class: 'glyphicon glyphicon-remove text-danger', 'ng-click': 'pre_borrar(producto)', 'data-toggle': 'modal', 'data-target': '#myModal'}

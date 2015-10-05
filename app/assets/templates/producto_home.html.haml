@@ -1,0 +1,8 @@
+%div.row
+	%div.col-md-12
+		%ul.list-group
+			%li.list-group-item.list-group-item-success
+				%span.glyphicon.glyphicon-user &nbsp {{producto.organizacion.nombre}} 
+		%ul.list-group
+			%li.list-group-item.list-group-item-info
+				%span.glyphicon.glyphicon-usd &nbsp {{precios[producto.id].precio || 'Sin precio / Sin Compras'}}
