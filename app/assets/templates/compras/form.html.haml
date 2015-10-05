@@ -37,7 +37,7 @@
 
 	%div.col-md-8
 		%br
-		%div{'ng-repeat': 'producto in productos | orderBy: "nombre" | filter:{organizacion_id: op.organizacion_id} | filter:search track by $index'}
+		%div{'ng-repeat': 'producto in productos | orderBy: "-updated_at" | filter:{organizacion_id: op.organizacion_id} | filter:search | limitTo:mostrar track by $index'}
 			%div.panel.panel-info
 				%div.panel-body.container-fluid
 					%div.col-md-2

@@ -1,5 +1,5 @@
 angular.module 'Tienda'
-.factory 'Shared', ($location) ->
+.factory 'Shared', ($location, $timeout) ->
 	editar_precio: (scope) ->
 		scope.op.total = 0
 		angular.forEach scope.op.operacionitems, (item) ->
@@ -81,3 +81,7 @@ angular.module 'Tienda'
 		if !scope.no_hay_items
 			respuesta = confirm("Desea descartar la orden de venta?")
 			event.preventDefault() if !respuesta
+	mostrar: ->
+		$timeout ->
+			$('#mostrar_todos').tooltip()
+		4

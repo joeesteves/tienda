@@ -4,5 +4,8 @@
 	%div.col-md-3
 		%button{class: 'btn btn-success', style: 'width:100%', 'ng-disabled': 'no_hay_items', value: 'submit'} Confirmar
 	%div.col-md-8
-		%input{'id': 'buscador', 'ng-model': 'search.$', class: 'form-control', placeholder: 'Buscar...'}
+		%div.input-group
+			%input{'id': 'buscador', 'ng-model': 'search.$', class: 'form-control', placeholder: 'Buscar...'}
+			%span.input-group-addon 
+				%input{type: 'checkbox', 'ng-model': 'mostrar', 'ng-true-value': 'false', 'ng-false-value': '{{mostrar}}', 'data-toggle': 'tooltip', 'data-placement': 'top', 'title': 'Listar todos los items', 'id': 'mostrar_todos'}
 	%br

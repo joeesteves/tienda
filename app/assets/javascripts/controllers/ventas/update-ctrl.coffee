@@ -16,6 +16,7 @@ angular.module 'Tienda'
 			$scope.pagotipos = data
 	.catch (err) ->
 		console.log(err)
+	$scope.mostrar = Shared.mostrar()
 
 	$scope.agregar_item = (producto) ->
 		Shared.agregar_item($scope, producto)

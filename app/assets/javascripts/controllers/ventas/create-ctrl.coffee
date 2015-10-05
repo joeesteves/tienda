@@ -13,6 +13,7 @@ angular.module 'Tienda'
 		$scope.op.pagotipo_id = $scope.pagotipos[0].id
 		$scope.op.factor_original = $scope.pagotipos[0].factor
 	$scope.precios = Producto.precios()
+	$scope.mostrar = Shared.mostrar()
 
 	$scope.agregar_item = (producto) ->
 		Shared.agregar_item($scope, producto)

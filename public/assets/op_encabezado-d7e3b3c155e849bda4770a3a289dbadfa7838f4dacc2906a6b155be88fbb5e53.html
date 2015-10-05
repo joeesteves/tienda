@@ -1,0 +1,17 @@
+<div>
+  <div class='col-md-1'>
+    <a class='btn btn-warning' ng-href='#/{{op_activa}}'>Cancelar</a>
+  </div>
+  <div class='col-md-3'>
+    <button class='btn btn-success' ng-disabled='no_hay_items' style='width:100%' value='submit'>Confirmar</button>
+  </div>
+  <div class='col-md-8'>
+    <div class='input-group'>
+      <input class='form-control' id='buscador' ng-model='search.$' placeholder='Buscar...'>
+      <span class='input-group-addon'>
+        <input data-placement='top' data-toggle='tooltip' id='mostrar_todos' ng-false-value='{{mostrar}}' ng-model='mostrar' ng-true-value='false' title='Listar todos los items' type='checkbox'>
+      </span>
+    </div>
+  </div>
+  <br>
+</div>

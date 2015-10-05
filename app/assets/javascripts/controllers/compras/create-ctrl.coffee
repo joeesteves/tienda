@@ -12,6 +12,7 @@ angular.module 'Tienda'
 	Producto.query().$promise.then (data) ->
 		$scope.productos = data
 	$scope.precios = Producto.precios()
+	$scope.mostrar = Shared.mostrar()
 	
 	$scope.agregar_item = (producto) ->
 		Shared.agregar_item($scope, producto)
