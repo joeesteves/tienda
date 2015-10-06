@@ -1,0 +1,122 @@
+<div class='container'>
+  <form ng-submit='confirmar_operacion()'>
+    <t-op-encabezado></t-op-encabezado>
+    <div class='col-md-4'>
+      <br>
+      <input ng-model='op.fecha' type='date'>
+      <textarea ng-model='op.desc' placeholder='Notas...' style='width:100%'></textarea>
+      <div class='row'>
+        <div class='col-md-4' ng-repeat='pagotipo in pagotipos'>
+          <input name='cp' ng-change='actualizar_precio_pagotipo(pagotipo)' ng-model='op.pagotipo_id' ng-value='pagotipo.id' type='radio'>{{pagotipo.nombre}} ({{pagotipo.factor}})</input>
+        </div>
+      </div>
+      <table class='table table-striped'>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Producto</th>
+            <th>Precio</th>
+            <th>Importe</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr ng-hide='item._destroy' ng-repeat='item in op.operacionitems'>
+            <td>{{item.cantidad}}</td>
+            <td>{{item.producto.nombre}}</td>
+            <td>
+              <input class='form-control' ng-change='editar_precio()' ng-model='item.precio' type='text'>
+            </td>
+            <td>{{item.cantidad * item.precio | number : fractionSize}}</td>
+          </tr>
+          <tr ng-hide='no_hay_items'>
+            <td class='warning' colspan='3'>Total</td>
+            <td class='warning'>{{op.total | number : fractionSize}}</td>
+          </tr>
+          <tr>
+            <td colspan='4'>
+              <div class='input-group'>
+                <span class='input-group-addon'>
+                  Seña &nbsp
+                  <input ng-false-value='false' ng-model='op.reserva' ng-true-value='true' type='checkbox'>
+                </span>
+                <input class='form-control' ng-disabled='op.reserva != true' ng-model='op.pago' ng-show='op.reserva == true' type='text'>
+              </div>
+            </td>
+          </tr>
+          <tr ng-show='no_hay_items'>
+            <td class='info text-right' colspan='4'>
+              Arme su orden de venta ...
+              <span class='glyphicon glyphicon-share-alt'></span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </form>
+  <div class='col-md-8'>
+    <br>
+    <div ng-repeat='producto in productos | orderBy: "-updated_at" | filter:search | limitTo:mostrar'>
+      <div class='panel panel-info'>
+        <div class='panel-body container-fluid'>
+          <div class='col-md-2'>
+            <div class='row'>
+              <div class='col-md-6'>
+                <div class='row'>
+                  <button class='btn btn-warning btn-sm'>
+                    Venta
+                    <br>
+                    <span class='badge' ng-hide='cant_prod[producto.id] &lt;= 0'>{{ cant_prod[producto.id] }}</span>
+                  </button>
+                </div>
+              </div>
+              <div class='col-md-6'>
+                <div class='row'>
+                  <button class='btn btn-success btn-sm'>
+                    Stock
+                    <br>
+                    <span class='badge' ng-hide='cant_prod[producto.id] + 50 &lt;= 0'>{{50 -  cant_prod[producto.id]}}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <br>
+            <div class='row'>
+              <div class='col-md-4'>
+                <div class='row'>
+                  <button class='btn btn-success' ng-click='agregar_item(producto)'>
+                    <span class='glyphicon glyphicon-plus'></span>
+                  </button>
+                </div>
+              </div>
+              <div class='col-md-4'>
+                <div class='row'>
+                  <button class='btn' ng-click='reset_search()'>
+                    <span class='glyphicon glyphicon-shopping-cart'></span>
+                  </button>
+                </div>
+              </div>
+              <div class='col-md-4'>
+                <div class='row'>
+                  <button class='btn btn-danger' ng-click='restar_item(producto)'>
+                    <span class='glyphicon glyphicon-minus'></span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class='col-md-8'>
+            <a ng-href='#/productos/{{producto.id}}'>
+              <h3 class='text-uppercase text-primary' style='margin-top:0px'>{{producto.nombre}}</h3>
+            </a>
+            <div marked='producto.desc'></div>
+            <p>de {{producto.organizacion.nombre}}</p>
+          </div>
+          <div class='col-md-2'>
+            <img height='70px' ng-src='{{producto.image}}'>
+          </div>
+        </div>
+      </div>
+      <div class='clearfix'></div>
+    </div>
+  </div>
+</div>
