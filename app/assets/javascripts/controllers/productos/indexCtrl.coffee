@@ -8,6 +8,8 @@ angular.module 'Tienda'
 			$('.producto_nombre').tooltip()
 		$scope.$on '$destroy', ->
 			$('.producto_nombre').tooltip('destroy')
+		angular.forEach $scope.productos, (producto) ->
+			producto.tab_activa = 'home' 
 	Producto.precios().$promise.then (data) ->
 		$scope.precios = data
 	$scope.pre_borrar = (objeto_a_borrar) ->
