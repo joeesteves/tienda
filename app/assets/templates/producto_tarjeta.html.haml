@@ -4,7 +4,8 @@
 			%div.row
 				%div.col-md-12
 					%a{'ng-href': '#/productos/{{producto.id}}'}
-						%h2{class: 'success text-center producto_nombre', title: '{{producto.nombre}}', 'data-toggle': 'tooltip', 'data-placement': 'bottom'} {{producto.nombre | limitTo:18}} ...
+						%h2{class: 'success text-center producto_nombre', title: '{{producto.nombre}}', 'data-toggle': 'tooltip', 'data-placement': 'bottom'} {{producto.nombre | limitTo:18}} {{ producto.nombre.length > 18 ? '...' : ''}}
+						
 			%t-producto-home{'ng-show': 'producto.tab_activa == "home"'}
 			%t-producto-img{'ng-show': 'producto.tab_activa == "img"'}
 			%t-producto-info{'ng-show': 'producto.tab_activa == "info"'}
