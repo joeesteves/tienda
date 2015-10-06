@@ -39,7 +39,7 @@
 
 	%div.col-md-8
 		%br
-		%div{'ng-repeat': 'producto in productos | orderBy: "-updated_at" | filter:search | limitTo:mostrar track by $index'}
+		%div{'ng-repeat': 'producto in productos | orderBy: "-updated_at" | filter:search | limitTo:mostrar'}
 			%div.panel.panel-info
 				%div.panel-body.container-fluid
 					%div.col-md-2
