@@ -11,7 +11,7 @@
 %br
 
 %div.container
-	%div{'ng-repeat': 'venta in ventas | orderBy: "-updated_at" | filter:search | limitTo:mostrar track by $index'}
+	%div{'ng-repeat': 'venta in ventas | orderBy: "-updated_at" | filter:search | limitTo:mostrar'}
 		%div{class: 'col-md-3'}
 			%div.panel.panel-info		
 				%div.panel-body
